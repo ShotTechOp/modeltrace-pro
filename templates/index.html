@@ -1,106 +1,309 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ModelTrace</title>
+  <title>ModelTrace Pro — LLM Fingerprint & Anti-Spoofing Auditor</title>
+  <meta name="description" content="Active mathematical model attribution & anti-spoofing detector for LLM API providers. Detects underlying models via Hellinger distance and ordered-block fingerprinting.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='repository-link.css') }}">
 </head>
 <body>
+  <!-- Top Navigation Bar -->
   <header class="topbar">
-    <div class="product-name"><span class="product-mark">MT</span><strong>ModelTrace</strong></div>
+    <div class="topbar-brand">
+      <div class="product-mark" title="ModelTrace Attribution Engine">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 12h3l3-7 4 14 3-7h3l2 4h4"/>
+        </svg>
+      </div>
+      <div class="product-title-group">
+        <div class="product-title">
+          <strong>ModelTrace</strong>
+          <span class="badge-tag">FORENSIC</span>
+        </div>
+        <span class="product-subtitle">LLM Reverse Attribution & Anti-Spoofing Auditor</span>
+      </div>
+    </div>
+
     <div class="topbar-actions">
-      <div class="topbar-status"><span id="topbar-bank-count">{{ unified.model_count }} 个候选模型</span></div>
-      <a class="topbar-github" href="https://github.com/xqy2006/ModelTrace" target="_blank" rel="noopener noreferrer" aria-label="在新标签页打开 ModelTrace 的 GitHub 仓库" title="GitHub 仓库">
-        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" focusable="false"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      <div class="status-chip" title="Fingerprint models loaded in unified database">
+        <span class="status-dot"></span>
+        <span id="topbar-bank-count" class="mono">{{ unified.model_count }} Signatures Enrolled</span>
+      </div>
+      <a class="railway-badge" href="https://railway.app" target="_blank" rel="noopener noreferrer" title="Deployable on Railway">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M.03 14.156l9.645-12.72c.312-.41.97-.19.97.327v11.777H.733c-.563 0-.877-.665-.703-1.384zm13.325-13.84v11.777h9.912c.563 0 .877.665.703 1.384l-9.645 12.72c-.312.41-.97.19-.97-.327V14.093H3.443L13.355.316z"/>
+        </svg>
+        Railway
+      </a>
+      <a class="topbar-github" href="https://github.com/xqy2006/ModelTrace" target="_blank" rel="noopener noreferrer" aria-label="View on GitHub" title="GitHub Repository">
+        <svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+        </svg>
       </a>
     </div>
   </header>
 
+  <!-- App Layout -->
   <div class="layout">
+    <!-- Sidebar Navigation -->
     <aside class="sidebar">
-      <nav aria-label="工作区">
-        <button class="nav-button active" data-workspace="test" type="button"><span class="nav-icon">01</span><span><strong>模型测试</strong></span></button>
-        <button class="nav-button" data-workspace="library" type="button"><span class="nav-icon">02</span><span><strong>指纹库管理</strong></span></button>
+      <nav aria-label="Workspaces">
+        <button class="nav-button active" data-workspace="test" type="button">
+          <span class="nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m10 15 5-3-5-3v6Z"/></svg>
+          </span>
+          <div class="nav-label">
+            <strong>Auditor</strong>
+            <small>Live probe & verification</small>
+          </div>
+        </button>
+        <button class="nav-button" data-workspace="library" type="button">
+          <span class="nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          </span>
+          <div class="nav-label">
+            <strong>Fingerprint Bank</strong>
+            <small>Centroids & distributions</small>
+          </div>
+        </button>
       </nav>
+
+      <div class="sidebar-spec-card">
+        <div class="spec-card-header">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 7h10"/><path d="M7 12h10"/><path d="M7 17h10"/></svg>
+          <strong>ENGINE SPECIFICATION</strong>
+        </div>
+        <dl class="spec-list">
+          <div><dt>Kernel</dt><dd>SVD 355-D</dd></div>
+          <div><dt>Metric</dt><dd>Hellinger Divergence</dd></div>
+          <div><dt>Enrolled</dt><dd class="mono">27 Models</dd></div>
+          <div><dt>Tolerance</dt><dd class="mono">α=0.05 / 3-Probe</dd></div>
+        </dl>
+      </div>
     </aside>
 
+    <!-- Main Workspace -->
     <main class="main-content">
+      <!-- WORKSPACE 1: MODEL AUDIT -->
       <section id="workspace-test" class="workspace active">
-        <div class="page-header"><h1>模型测试</h1><div id="active-bank-badge" class="privacy-badge">{{ unified.model_count }} 个候选模型</div></div>
-
-        <div class="mode-tabs" role="tablist" aria-label="测试方式">
-          <button class="mode-tab active" data-test-mode="manual" type="button">手动测试</button>
-          <button class="mode-tab" data-test-mode="api" type="button">API 自动测试</button>
+        <div class="page-header">
+          <div>
+            <h1>Model Attribution Audit</h1>
+            <p>Reverse-engineer true underlying LLM model weights through non-semantic token distribution analysis.</p>
+          </div>
+          <div id="active-bank-badge" class="badge-status-pill">
+            <span class="dot"></span> <span class="mono">{{ unified.model_count }} Verified Profiles</span>
+          </div>
         </div>
 
-        <section id="test-manual" class="mode-panel active">
-          <div class="panel-toolbar"><strong>三次挑战</strong><button id="regenerate" class="button secondary" type="button">重新生成</button></div>
-          <div id="challenge-list" class="challenge-list" aria-live="polite"></div>
-          <div class="action-row"><button id="analyze" class="button primary" type="button">计算归因概率</button></div>
-        </section>
+        <!-- Mode Tabs -->
+        <div class="mode-tabs" role="tablist">
+          <button class="mode-tab active" data-test-mode="api" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Automated API Probe
+          </button>
+          <button class="mode-tab" data-test-mode="manual" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Manual Sample Input
+          </button>
+        </div>
 
-        <section id="test-api" class="mode-panel">
-          <form id="api-test-form" class="form-panel">
+        <!-- MODE 1: AUTOMATED API AUDIT -->
+        <section id="test-api" class="mode-panel active">
+          <!-- Preset quick-fills -->
+          <div class="presets-row">
+            <span class="preset-label">TARGET PRESETS:</span>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://miarouter.online', 'claude-opus-4-8')">miarouter/opus-4.8</button>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://miarouter.online', 'gemini-3.8-flash')">gemini-3.8-flash</button>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://miarouter.online', 'gemini-3.1-pro')">gemini-3.1-pro</button>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://miarouter.online', 'qwen3.8-max')">qwen3.8-max</button>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://miarouter.online', 'bunny-qwen3')">bunny-qwen3</button>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://api.openai.com/v1', 'gpt-4o')">openai/gpt-4o</button>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://api.anthropic.com/v1', 'claude-3-5-sonnet-20241022')">anthropic/sonnet-3.5</button>
+          </div>
+
+          <form id="api-test-form" class="card-panel form-panel">
             <div class="form-grid two">
-              <label><span>Base URL</span><input id="test-api-base" required placeholder="https://example.com/v1"></label>
-              <label><span>接口模型名</span><input id="test-api-model" required placeholder="模型名"></label>
-              <label><span>API Key</span><input id="test-api-key" type="password" required autocomplete="off"></label>
-              <label><span>温度（可选）</span><input id="test-temperature" type="number" min="0" max="2" step="0.1" placeholder="接口默认"></label>
+              <label>
+                <span class="label-title">Base URL <span class="req">*</span></span>
+                <input id="test-api-base" class="mono" required placeholder="https://api.provider.com/v1" autocomplete="off" spellcheck="false">
+                <span class="field-hint">Supports OpenAI (/v1/chat/completions) & Anthropic (/v1/messages)</span>
+              </label>
+
+              <label>
+                <span class="label-title">Claimed Model Name <span class="req">*</span></span>
+                <input id="test-api-model" class="mono" required placeholder="e.g. claude-opus-4-8, gpt-4o" autocomplete="off" spellcheck="false">
+                <span class="field-hint">Model identifier advertised or billed by your upstream provider</span>
+              </label>
+
+              <label>
+                <span class="label-title">API Key (Bearer / x-api-key) <span class="req">*</span></span>
+                <div class="password-wrapper">
+                  <input id="test-api-key" type="password" required autocomplete="off" placeholder="sk-...">
+                  <button type="button" class="toggle-pwd-btn" onclick="togglePasswordVisibility('test-api-key')">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                </div>
+                <span class="field-hint">Key is used only for current probes. Never logged or saved to disk.</span>
+              </label>
+
+              <label>
+                <span class="label-title">Temperature (Optional)</span>
+                <input id="test-temperature" type="number" min="0" max="2" step="0.1" placeholder="Provider default (Recommended)">
+                <span class="field-hint">Leave blank to use the provider's default model temperature</span>
+              </label>
             </div>
-            <div class="form-footer"><button class="button primary" type="submit">开始测试</button></div>
+
+            <div class="form-footer">
+              <button class="button primary" type="submit" id="btn-start-audit">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                Execute Probe Suite (3 Rounds)
+              </button>
+            </div>
           </form>
-          <section id="api-test-progress" class="progress-panel" hidden aria-live="polite">
-            <div class="progress-heading"><strong id="api-progress-status">准备测试</strong><span id="api-progress-count">有效 0/3 · 已尝试 0/6</span></div>
-            <div class="progress-track"><i id="api-progress-fill"></i></div>
+
+          <!-- Live Progress & Diagnostic Cards -->
+          <section id="api-test-progress" class="card-panel progress-panel" hidden aria-live="polite">
+            <div class="progress-heading">
+              <div class="progress-title-block">
+                <span class="spinner-dot"></span>
+                <strong id="api-progress-status">Preparing Challenges...</strong>
+              </div>
+              <span id="api-progress-count" class="badge-subtle">0/3 Valid · 0/6 Attempts</span>
+            </div>
+            
+            <div class="progress-track">
+              <i id="api-progress-fill"></i>
+            </div>
+            
             <div id="api-progress-steps" class="progress-steps"></div>
+
+            <!-- Live Telemetry Grid -->
+            <div id="api-telemetry-grid" class="telemetry-grid" hidden>
+              <div class="telemetry-card">
+                <span class="telem-label">Avg Generation Speed</span>
+                <span class="telem-val" id="telem-tps">-- tps</span>
+                <small id="telem-tps-note">Waiting for tokens</small>
+              </div>
+              <div class="telemetry-card">
+                <span class="telem-label">Avg Latency</span>
+                <span class="telem-val" id="telem-lat">-- s</span>
+                <small id="telem-lat-note">Per challenge</small>
+              </div>
+              <div class="telemetry-card">
+                <span class="telem-label">Detected Format</span>
+                <span class="telem-val" id="telem-format">Auto</span>
+                <small id="telem-format-note">OpenAI or Anthropic</small>
+              </div>
+              <div class="telemetry-card" id="telem-leak-card">
+                <span class="telem-label">Upstream Header Leak</span>
+                <span class="telem-val" id="telem-leak">Clean</span>
+                <small id="telem-leak-note">No unmasked ID detected</small>
+              </div>
+            </div>
           </section>
         </section>
 
-        <div id="test-message" class="message" hidden></div>
+        <!-- MODE 2: MANUAL BENCHMARK -->
+        <section id="test-manual" class="mode-panel">
+          <div class="card-panel">
+            <div class="panel-toolbar">
+              <div>
+                <strong>Three Independent Mathematical Probes</strong>
+                <p class="section-desc">Copy each challenge prompt into your LLM chat session (Claude, ChatGPT, etc.) and paste the unedited integer response.</p>
+              </div>
+              <button id="regenerate" class="button secondary" type="button">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                Regenerate Prompts
+              </button>
+            </div>
+            <div id="challenge-list" class="challenge-list" aria-live="polite"></div>
+            <div class="action-row">
+              <button id="analyze" class="button primary" type="button">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Compute Attribution Matrix
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Error / Status Message Banner -->
+        <div id="test-message" class="message-banner" hidden></div>
+
+        <!-- AUDIT RESULTS SECTION -->
         <section id="result" class="result-panel" hidden aria-live="polite"></section>
       </section>
 
+      <!-- WORKSPACE 2: FINGERPRINT LIBRARY -->
       <section id="workspace-library" class="workspace">
         <div class="page-header">
-          <h1>指纹库管理</h1>
+          <div>
+            <h1>Fingerprint Bank & Reference Profiles</h1>
+            <p>Inspect statistical centroids, Hellinger projection matrices, and enrolled frontier models.</p>
+          </div>
           <div class="library-actions">
-            <label class="bank-picker"><span>指纹库</span><select id="bank-select">{% for bank_id, item in banks.items() %}<option value="{{ bank_id }}"{% if bank_id == default_bank_id %} selected{% endif %}>{{ item.label }}</option>{% endfor %}</select></label>
-            <button id="show-create-bank" class="button secondary" type="button">新建指纹库</button>
+            <label class="bank-picker">
+              <span>Fingerprint Family:</span>
+              <select id="bank-select">
+                {% for bank_id, item in banks.items() %}
+                <option value="{{ bank_id }}"{% if bank_id == default_bank_id %} selected{% endif %}>{{ item.label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <button id="show-create-bank" class="button secondary" type="button">+ New Family</button>
           </div>
         </div>
 
-        <form id="create-bank-form" class="form-panel compact-form" hidden>
-          <label><span>指纹库名称</span><input id="new-bank-name" required placeholder="例如 Llama"></label>
-          <button class="button primary" type="submit">创建</button>
+        <form id="create-bank-form" class="card-panel form-panel compact-form" hidden>
+          <label>
+            <span>New Family Name</span>
+            <input id="new-bank-name" required placeholder="e.g. Mistral, DeepSeek">
+          </label>
+          <button class="button primary" type="submit">Create</button>
         </form>
 
-        <section class="inventory-panel simple-inventory">
-          <div class="form-heading"><strong id="selected-bank-name">{{ bank.label }}</strong></div>
+        <section class="card-panel inventory-panel">
+          <div class="form-heading">
+            <strong id="selected-bank-name">{{ bank.label }} Family Models</strong>
+          </div>
           <div id="bank-inventory" class="fingerprint-list"></div>
         </section>
 
-        <form id="auto-enrollment" class="form-panel">
-          <div class="form-heading"><strong>新建指纹</strong></div>
-          <div class="form-grid two">
-            <label><span>Base URL</span><input id="api-base" required placeholder="https://example.com/v1"></label>
-            <label><span>接口模型名</span><input id="api-model" required placeholder="实际请求使用的模型名"></label>
-            <label><span>API Key</span><input id="api-key" type="password" required autocomplete="off"></label>
-            <label><span>指纹名称</span><input id="auto-model" list="model-options" required placeholder="例如 model-version-name"></label>
-            <label><span>采集回答数</span><input id="sample-count" type="number" min="3" max="36" value="36" required></label>
-            <label><span>温度（可选）</span><input id="temperature" type="number" min="0" max="2" step="0.1" placeholder="接口默认"></label>
+        <!-- Enroll New Model -->
+        <form id="auto-enrollment" class="card-panel form-panel">
+          <div class="form-heading">
+            <strong>Enroll New Model Fingerprint via API</strong>
+            <p class="section-desc">Sample 36 challenge prompts to calibrate and store a new model's mathematical centroid.</p>
           </div>
-          <div class="form-footer"><button class="button primary" type="submit">自动采集并建立指纹</button></div>
+          <div class="form-grid two">
+            <label><span>Base URL</span><input id="api-base" required placeholder="https://api.openai.com/v1"></label>
+            <label><span>Request Model Name</span><input id="api-model" required placeholder="e.g. gpt-4o, claude-3-5-sonnet"></label>
+            <label><span>API Key</span><input id="api-key" type="password" required autocomplete="off"></label>
+            <label><span>Fingerprint Display Label</span><input id="auto-model" list="model-options" required placeholder="e.g. Claude 3.5 Sonnet (20241022)"></label>
+            <label><span>Sample Responses</span><input id="sample-count" type="number" min="3" max="36" value="36" required></label>
+            <label><span>Temperature (Optional)</span><input id="temperature" type="number" min="0" max="2" step="0.1" placeholder="Provider default"></label>
+          </div>
+          <div class="form-footer">
+            <button class="button primary" type="submit">Enroll Fingerprint</button>
+          </div>
         </form>
 
-        <div id="enrollment-message" class="message" hidden></div>
+        <div id="enrollment-message" class="message-banner" hidden></div>
       </section>
     </main>
   </div>
 
-  <datalist id="model-options">{% for model in bank.models %}<option value="{{ model.id }}">{% endfor %}</datalist>
-  <script>window.BANK_SUMMARIES = {{ banks | tojson }}; window.UNIFIED_SUMMARY = {{ unified | tojson }}; window.DEFAULT_BANK_ID = {{ default_bank_id | tojson }};</script>
+  <!-- Injected Server State -->
+  <script>
+    window.DEFAULT_BANK_ID = {{ default_bank_id | tojson }};
+    window.BANK_SUMMARIES = {{ banks | tojson }};
+    window.UNIFIED_SUMMARY = {{ unified | tojson }};
+  </script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>

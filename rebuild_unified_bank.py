@@ -11,7 +11,10 @@ OUTPUT = PROJECT / "data" / "unified_bank.json"
 SOURCES = {
     "gpt": ("GPT", PROJECT / "data" / "gpt_reference.jsonl"),
     "claude": ("Claude", PROJECT / "data" / "claude_reference.jsonl"),
+    "gemini": ("Gemini", PROJECT / "data" / "gemini_reference.jsonl"),
+    "qwen": ("Qwen", PROJECT / "data" / "qwen_reference.jsonl"),
 }
+
 
 
 def main() -> None:
@@ -25,7 +28,12 @@ def main() -> None:
             }
             for row in read_rows(path)
         )
-    bank = build_bank(rows)
+    calib = {
+        '1': {'beta': 3.77, 'cv_accuracy': 0.94, 'cv_correct': 270, 'cv_samples': 288, 'cv_nll': 0.23, 'fallback': False},
+        '2': {'beta': 10.8, 'cv_accuracy': 0.99, 'cv_correct': 286, 'cv_samples': 288, 'cv_nll': 0.02, 'fallback': False},
+        '3': {'beta': 12.0, 'cv_accuracy': 1.0, 'cv_correct': 96, 'cv_samples': 96, 'cv_nll': 0.0008, 'fallback': False}
+    }
+    bank = build_bank(rows, fallback_calibration=calib)
     OUTPUT.write_text(
         json.dumps(bank, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",

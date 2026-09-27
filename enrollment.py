@@ -203,7 +203,7 @@ def _compact_upstream_error(details: str, fallback: str) -> str:
     return text[:500]
 
 
-def _request_completion(
+def _request_completion_details(
     base_url: str,
     api_key: str,
     api_model: str,
@@ -211,7 +211,8 @@ def _request_completion(
     temperature: float | None,
     api_format: str,
     system_prompt: str = "",
-) -> str:
+) -> tuple[str, dict]:
+    t0 = time.time()
     if api_format == "anthropic":
         body_data = {
             "model": api_model,
@@ -268,11 +269,17 @@ def _request_completion(
                 continue
             retried = f"（已自动重试 {attempt - 1} 次）" if attempt > 1 else ""
             raise RuntimeError(f"无法连接接口：{reason}{retried}") from error
+
+    latency = round(time.time() - t0, 2)
+    raw_model = payload.get("model") if isinstance(payload, dict) else None
+    usage = payload.get("usage", {}) if isinstance(payload, dict) else {}
+    completion_tokens = usage.get("output_tokens") or usage.get("completion_tokens")
+
     if api_format == "anthropic":
         content = "".join(
             block.get("text", "")
-            for block in payload["content"]
-            if block.get("type") == "text"
+            for block in payload.get("content", [])
+            if isinstance(block, dict) and block.get("type") == "text"
         )
         stop_reason = payload.get("stop_reason")
         if stop_reason == "refusal":
@@ -286,7 +293,62 @@ def _request_completion(
             content = "".join(part.get("text", "") for part in content)
         if choice.get("finish_reason") in {"length", "content_filter"}:
             raise RuntimeError(f"回答未正常完成（{choice['finish_reason']}），本次回答不计入")
-    return str(content)
+
+    content_str = str(content)
+    if not completion_tokens:
+        # Approximate tokens based on characters and numbers
+        completion_tokens = max(1, len(content_str) // 3)
+    tps = round(completion_tokens / latency, 1) if latency > 0 else 0
+
+    meta = {
+        "latency": latency,
+        "raw_model": raw_model,
+        "api_format": api_format,
+        "tokens": completion_tokens,
+        "tps": tps,
+        "model_leak": raw_model if (raw_model and raw_model.strip().lower() != api_model.strip().lower()) else None,
+    }
+    return content_str, meta
+
+
+def _request_completion(
+    base_url: str,
+    api_key: str,
+    api_model: str,
+    prompt: str,
+    temperature: float | None,
+    api_format: str,
+    system_prompt: str = "",
+) -> str:
+    content, _ = _request_completion_details(
+        base_url, api_key, api_model, prompt, temperature, api_format, system_prompt
+    )
+    return content
+
+
+def request_completion_with_meta(
+    base_url: str,
+    api_key: str,
+    api_model: str,
+    prompt: str,
+    temperature: float | None,
+    api_format: str = "auto",
+    system_prompt: str = "",
+) -> tuple[str, dict]:
+    if api_format != "auto":
+        return _request_completion_details(
+            base_url, api_key, api_model, prompt, temperature, api_format, system_prompt
+        )
+    formats = ("openai", "anthropic")
+    errors = []
+    for candidate in formats:
+        try:
+            return _request_completion_details(
+                base_url, api_key, api_model, prompt, temperature, candidate, system_prompt
+            )
+        except RuntimeError as error:
+            errors.append(f"{candidate}: {error}")
+    raise RuntimeError("接口格式自动探测失败；" + "；".join(errors))
 
 
 def request_completion(
@@ -298,20 +360,11 @@ def request_completion(
     api_format: str = "auto",
     system_prompt: str = "",
 ) -> str:
-    if api_format != "auto":
-        return _request_completion(
-            base_url, api_key, api_model, prompt, temperature, api_format, system_prompt
-        )
-    formats = ("openai", "anthropic")
-    errors = []
-    for candidate in formats:
-        try:
-            return _request_completion(
-                base_url, api_key, api_model, prompt, temperature, candidate, system_prompt
-            )
-        except RuntimeError as error:
-            errors.append(f"{candidate}: {error}")
-    raise RuntimeError("接口格式自动探测失败；" + "；".join(errors))
+    content, _ = request_completion_with_meta(
+        base_url, api_key, api_model, prompt, temperature, api_format, system_prompt
+    )
+    return content
+
 
 
 def test_automatic(

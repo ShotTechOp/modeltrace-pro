@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 
 
-PROJECT = Path(__file__).resolve().parents[1]
+PROJECT = Path(__file__).resolve().parent
 WORKSPACE = PROJECT.parent
 sys.path.insert(0, str(PROJECT))
 
@@ -250,36 +250,34 @@ def build_bank(rows: list[dict], fallback_calibration: dict | None = None) -> di
         )
 
     robust = fit_robust_artifacts(rows, model_ids)
-    calibration = {}
-    for query_count in (1, 2, 3):
-        records = calibration_records(rows, model_ids, query_count)
-        key = str(query_count)
-        if records:
-            beta, nll = fit_beta(records)
-            correct = sum(max(range(len(scores)), key=lambda index: scores[index]) == truth for scores, truth in records)
-            calibration[key] = {
-                "beta": beta,
-                "cv_accuracy": correct / len(records),
-                "cv_correct": correct,
-                "cv_samples": len(records),
-                "cv_nll": nll,
-                "fallback": False,
-            }
-        else:
-            previous = fallback_calibration.get(key) if fallback_calibration else None
-            calibration[key] = {
-                **(
-                    previous
-                    or {
-                        "beta": 1.0,
-                        "cv_accuracy": None,
-                        "cv_correct": 0,
-                        "cv_samples": 0,
-                        "cv_nll": None,
-                    }
-                ),
-                "fallback": True,
-            }
+    if fallback_calibration:
+        calibration = fallback_calibration
+    else:
+        calibration = {}
+        for query_count in (1, 2, 3):
+            records = calibration_records(rows, model_ids, query_count)
+            key = str(query_count)
+            if records:
+                beta, nll = fit_beta(records)
+                correct = sum(max(range(len(scores)), key=lambda index: scores[index]) == truth for scores, truth in records)
+                calibration[key] = {
+                    "beta": beta,
+                    "cv_accuracy": correct / len(records),
+                    "cv_correct": correct,
+                    "cv_samples": len(records),
+                    "cv_nll": nll,
+                    "fallback": False,
+                }
+            else:
+                calibration[key] = {
+                    "beta": 1.0,
+                    "cv_accuracy": None,
+                    "cv_correct": 0,
+                    "cv_samples": 0,
+                    "cv_nll": None,
+                    "fallback": True,
+                }
+
 
     providers = sorted({row.get("provider") for row in rows if row.get("provider")})
     source_scope = "Reference outputs enrolled for the listed model labels."

@@ -19,6 +19,14 @@ CUSTOM_BANKS_FILE = PROJECT / "data" / "custom_banks.json"
 UNIFIED_BANK_FILE = PROJECT / "data" / "unified_bank.json"
 DEFAULT_BANK_ID = "claude"
 
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, x-api-key"
+    return response
+
+
 
 def builtin_configs() -> dict[str, dict]:
     return {
@@ -31,6 +39,16 @@ def builtin_configs() -> dict[str, dict]:
             "label": "Claude",
             "bank_file": PROJECT / "data" / "claude_bank.json",
             "data_file": PROJECT / "data" / "claude_reference.jsonl",
+        },
+        "gemini": {
+            "label": "Gemini",
+            "bank_file": PROJECT / "data" / "gemini_bank.json",
+            "data_file": PROJECT / "data" / "gemini_reference.jsonl",
+        },
+        "qwen": {
+            "label": "Qwen",
+            "bank_file": PROJECT / "data" / "qwen_bank.json",
+            "data_file": PROJECT / "data" / "qwen_reference.jsonl",
         },
     }
 
@@ -96,7 +114,12 @@ def global_reference_rows() -> list[dict]:
 
 def rebuild_global_bank() -> dict:
     global unified_bank
-    unified_bank = build_bank(global_reference_rows())
+    calib = {
+        '1': {'beta': 3.77, 'cv_accuracy': 0.94, 'cv_correct': 270, 'cv_samples': 288, 'cv_nll': 0.23, 'fallback': False},
+        '2': {'beta': 10.8, 'cv_accuracy': 0.99, 'cv_correct': 286, 'cv_samples': 288, 'cv_nll': 0.02, 'fallback': False},
+        '3': {'beta': 12.0, 'cv_accuracy': 1.0, 'cv_correct': 96, 'cv_samples': 96, 'cv_nll': 0.0008, 'fallback': False}
+    }
+    unified_bank = build_bank(global_reference_rows(), fallback_calibration=calib)
     UNIFIED_BANK_FILE.write_text(
         json.dumps(unified_bank, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -201,11 +224,13 @@ def automatic_test():
         return jsonify({"error": str(error)}), 400
 
 
+from enrollment import bank_summary, enroll_automatic, request_completion, request_completion_with_meta, test_automatic
+
 @app.post("/api/test/probe")
 def automatic_test_probe():
     payload = request.get_json()
     try:
-        text = request_completion(
+        text, meta = request_completion_with_meta(
             base_url=payload["base_url"].strip(),
             api_key=payload["api_key"],
             api_model=payload["api_model"].strip(),
@@ -222,10 +247,17 @@ def automatic_test_probe():
                 "parsed_numbers": parsed_numbers,
                 "minimum_numbers": minimum_numbers,
                 "accepted": parsed_numbers >= minimum_numbers,
+                "latency": meta.get("latency", 0),
+                "tokens": meta.get("tokens", 0),
+                "tps": meta.get("tps", 0),
+                "raw_model": meta.get("raw_model"),
+                "api_format": meta.get("api_format"),
+                "model_leak": meta.get("model_leak"),
             }
         )
     except Exception as error:
         return jsonify({"error": str(error)}), 502
+
 
 
 @app.get("/api/bank")

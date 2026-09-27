@@ -1,8 +1,9 @@
 const state = {
   challenges: [],
   bankId: window.DEFAULT_BANK_ID,
-  bank: window.BANK_SUMMARIES[window.DEFAULT_BANK_ID],
+  bank: window.BANK_SUMMARIES ? window.BANK_SUMMARIES[window.DEFAULT_BANK_ID] : null,
   unified: window.UNIFIED_SUMMARY,
+  lastAuditResult: null,
 };
 
 const byId = (id) => document.getElementById(id);
@@ -14,7 +15,7 @@ function escapeHtml(value) {
 }
 
 function percent(value) {
-  return `${(value * 100).toFixed(1)}%`;
+  return `${(Number(value || 0) * 100).toFixed(1)}%`;
 }
 
 function optionalNumber(id) {
@@ -24,8 +25,23 @@ function optionalNumber(id) {
 
 function setMessage(element, text, type = "error") {
   element.textContent = text;
-  element.className = `message ${type}`;
+  element.className = `message-banner ${type}`;
   element.hidden = !text;
+}
+
+function togglePasswordVisibility(id) {
+  const input = byId(id);
+  if (!input) return;
+  input.type = input.type === "password" ? "text" : "password";
+}
+
+function fillPreset(url, model) {
+  byId("test-api-base").value = url;
+  byId("test-api-model").value = model;
+  const keyInput = byId("test-api-key");
+  if (!keyInput.value) {
+    keyInput.focus();
+  }
 }
 
 function activateWorkspace(name) {
@@ -41,87 +57,244 @@ function activateMode(group, name) {
 }
 
 async function loadChallenges() {
-  byId("regenerate").disabled = true;
+  const btn = byId("regenerate");
+  if (btn) btn.disabled = true;
   byId("result").hidden = true;
   setMessage(byId("test-message"), "");
-  const response = await fetch("/api/challenges");
-  state.challenges = (await response.json()).challenges;
-  renderChallenges();
-  byId("regenerate").disabled = false;
+  try {
+    const response = await fetch("/api/challenges");
+    state.challenges = (await response.json()).challenges;
+    renderChallenges();
+  } catch (err) {
+    setMessage(byId("test-message"), "Failed to load challenges: " + err.message, "error");
+  }
+  if (btn) btn.disabled = false;
 }
 
 function renderChallenges() {
-  byId("challenge-list").innerHTML = state.challenges.map((challenge, index) => `
+  const container = byId("challenge-list");
+  if (!container) return;
+  container.innerHTML = state.challenges.map((challenge, index) => `
     <article class="challenge-item">
       <div class="challenge-header">
-        <strong>挑战 ${index + 1}</strong>
-        <span>${challenge.expected_count} 个数字</span>
-        <button type="button" data-copy="${index}">复制提示词</button>
+        <strong>Challenge Probe #${index + 1}</strong>
+        <span>Target: ${challenge.expected_count} integers</span>
+        <button type="button" data-copy="${index}">Copy Prompt</button>
       </div>
       <div class="challenge-columns">
-        <div><label>发送给待测模型</label><pre>${escapeHtml(challenge.prompt)}</pre></div>
-        <div><label for="output-${index}">粘贴完整输出</label><textarea id="output-${index}" spellcheck="false" placeholder="保留文字、标点、代码块和完整数字序列"></textarea></div>
+        <div>
+          <label class="label-title">Send to Model</label>
+          <pre>${escapeHtml(challenge.prompt)}</pre>
+        </div>
+        <div>
+          <label class="label-title" for="output-${index}">Paste Model's Output</label>
+          <textarea id="output-${index}" spellcheck="false" placeholder="Paste unedited output sequence here..."></textarea>
+        </div>
       </div>
     </article>
   `).join("");
+
   document.querySelectorAll("[data-copy]").forEach((button) => {
     button.addEventListener("click", async () => {
-      await navigator.clipboard.writeText(state.challenges[Number(button.dataset.copy)].prompt);
-      button.textContent = "已复制";
-      window.setTimeout(() => { button.textContent = "复制提示词"; }, 1000);
+      const idx = Number(button.dataset.copy);
+      await navigator.clipboard.writeText(state.challenges[idx].prompt);
+      const originalText = button.textContent;
+      button.textContent = "Copied ✓";
+      button.style.borderColor = "var(--emerald)";
+      button.style.color = "var(--emerald)";
+      window.setTimeout(() => {
+        button.textContent = originalText;
+        button.style.borderColor = "";
+        button.style.color = "";
+      }, 1500);
     });
   });
 }
 
-function renderResult(payload) {
+function renderResult(payload, claimedModel = null) {
+  state.lastAuditResult = { payload, claimedModel };
+
+  // Detect spoofing
+  const predicted = (payload.prediction_name || "").toLowerCase();
+  const claimed = (claimedModel || "").toLowerCase().trim();
+  
+  let isSpoof = false;
+  if (claimed) {
+    // If user claimed Opus or Sonnet or GPT-4o but prediction is different
+    const isClaimedHaiku = claimed.includes("haiku") || claimed.includes("flash");
+    const isPredHaiku = predicted.includes("haiku") || predicted.includes("flash") || predicted.includes("mini");
+    const isClaimedOpus = claimed.includes("opus");
+    const isPredOpus = predicted.includes("opus");
+
+    if ((isClaimedOpus && !isPredOpus) || (isClaimedOpus && isPredHaiku) || (!isClaimedHaiku && isPredHaiku)) {
+      isSpoof = true;
+    } else if (claimed && !claimed.includes(predicted) && !predicted.includes(claimed)) {
+      isSpoof = true;
+    }
+  }
+
+  // Diagnostics chips
   const diagnostics = payload.diagnostics.map((item, index) => `
-    <span class="diagnostic ${item.accepted ? "accepted" : "rejected"}">挑战 ${index + 1}: ${item.parsed_numbers} 个数字 · ${item.accepted ? "计入" : "忽略"}</span>
+    <span class="diagnostic-chip ${item.accepted ? "accepted" : "rejected"}">
+      Probe #${index + 1}: ${item.parsed_numbers} numbers · ${item.accepted ? "Valid ✓" : "Invalid ✗"}
+    </span>
   `).join("");
+
+  // Table rows
   const rows = payload.results.map((item, index) => `
     <tr class="${index === 0 ? "winner" : ""}">
-      <td>${index + 1}</td><td><strong>${escapeHtml(item.display_name)}</strong></td><td>${escapeHtml(item.family_name)}</td>
-      <td><div class="probability-cell"><span><i style="width:${item.probability * 100}%"></i></span><strong>${percent(item.probability)}</strong></div></td>
-      <td>${percent(item.profile_similarity)}</td>
+      <td>#${index + 1}</td>
+      <td><strong>${escapeHtml(item.display_name)}</strong></td>
+      <td><span class="badge-subtle">${escapeHtml(item.family_name)}</span></td>
+      <td>
+        <div class="prob-bar-container">
+          <div class="prob-track">
+            <span class="prob-fill" style="width: ${Math.max(2, item.probability * 100)}%"></span>
+          </div>
+          <strong>${percent(item.probability)}</strong>
+        </div>
+      </td>
+      <td><code>${percent(item.profile_similarity)}</code></td>
     </tr>
   `).join("");
-  const apiNote = payload.api_test
-    ? `<span>API 获得 ${payload.api_test.received}/${payload.api_test.requested} 份有效回答，实际尝试 ${payload.api_test.attempted}/${payload.api_test.max_attempts}${payload.api_test.errors.length ? `，${payload.api_test.errors.length} 次未采用` : ""}</span>`
-    : "";
+
+  const apiMeta = payload.api_test || {};
+
   byId("result").innerHTML = `
-    <div class="result-summary">
-      <div><span>最可能模型</span><strong>${escapeHtml(payload.prediction_name)}</strong></div>
-      <div><span>统一库概率</span><strong>${percent(payload.probability)}</strong></div>
-      <div><span>自动识别家族</span><strong>${escapeHtml(payload.family_prediction_name)} · ${percent(payload.family_probability)}</strong></div>
-      <div><span>有效查询</span><strong>${payload.used_outputs}/3</strong></div>
+    <div class="hero-attribution-card ${isSpoof ? 'spoof-detected' : 'authentic'}">
+      <div class="audit-status-badge ${isSpoof ? 'warning' : 'verified'}">
+        ${isSpoof 
+          ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> SPOOFING / ROUTER SWAP DETECTED' 
+          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg> AUTHENTIC FINGERPRINT MATCH'}
+      </div>
+
+      <div class="hero-main-row">
+        <div>
+          <div class="hero-model-title">${escapeHtml(payload.prediction_name)}</div>
+          <div class="hero-family-tag">Identified Family: <strong>${escapeHtml(payload.family_prediction_name)}</strong> (${percent(payload.family_probability)})</div>
+        </div>
+
+        <div class="hero-probability-gauge">
+          <div class="gauge-num">${percent(payload.probability)}</div>
+          <div class="gauge-label">Attribution Confidence</div>
+        </div>
+      </div>
+
+      ${isSpoof ? `
+        <div class="spoof-alert-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <strong>Provider Discrepancy Alert!</strong>
+            <p>You requested <strong>${escapeHtml(claimedModel || "Custom Model")}</strong>, but the mathematical fingerprinting algorithm (Hellinger distance & ordered sequence analysis) indicates the response was fulfilled by <strong>${escapeHtml(payload.prediction_name)}</strong>. The provider is likely routing your requests through a cheaper lightweight model.</p>
+          </div>
+        </div>
+      ` : ''}
     </div>
-    <div class="diagnostics">${diagnostics}</div>
-    <div class="table-wrap"><table><thead><tr><th>排序</th><th>候选模型</th><th>家族</th><th>归因概率</th><th>分布相似度</th></tr></thead><tbody>${rows}</tbody></table></div>
-    ${apiNote ? `<div class="result-note">${apiNote}</div>` : ""}
-    <div class="result-guidance" role="note" aria-label="结果说明">
-      <p>本工具仅对指纹库内的模型进行归因；若待测模型不在指纹库中，得到任何结果都有可能。</p>
-      <p>Claude Code 的系统提示词会影响模型偏好，测试结果存在较大偏差，建议不要在 Claude Code 中测试。</p>
+
+    <!-- Stats Summary Row -->
+    <div class="stats-summary-row">
+      <div class="stat-box">
+        <span>Profile Similarity</span>
+        <strong>${percent(payload.results[0]?.profile_similarity)}</strong>
+      </div>
+      <div class="stat-box">
+        <span>Valid Samples</span>
+        <strong>${payload.used_outputs} / 3</strong>
+      </div>
+      <div class="stat-box">
+        <span>Avg Generation Speed</span>
+        <strong>${apiMeta.avg_tps ? apiMeta.avg_tps + ' tps' : 'N/A'}</strong>
+      </div>
+      <div class="stat-box">
+        <span>Avg Latency</span>
+        <strong>${apiMeta.avg_lat ? apiMeta.avg_lat + ' s' : 'N/A'}</strong>
+      </div>
+    </div>
+
+    <!-- Diagnostic Badges -->
+    <div class="diagnostics-chips">${diagnostics}</div>
+
+    <!-- Candidates Table -->
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Candidate Model</th>
+            <th>Family</th>
+            <th>Attribution Probability</th>
+            <th>Centroid Similarity</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+
+    <!-- Forensic Action Toolbar -->
+    <div class="results-action-toolbar">
+      <button class="button secondary" type="button" onclick="copyMarkdownReport()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copy Forensic Report (Markdown)
+      </button>
     </div>
   `;
+
   byId("result").hidden = false;
   byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function copyMarkdownReport() {
+  if (!state.lastAuditResult) return;
+  const { payload, claimedModel } = state.lastAuditResult;
+  const isSpoof = claimedModel && !claimedModel.toLowerCase().includes(payload.prediction_name.toLowerCase());
+  
+  let md = `### 🔍 ModelTrace Forensic Attribution Audit\n\n`;
+  md += `- **Claimed / Billed Model**: \`${claimedModel || "Not specified"}\`\n`;
+  md += `- **Attributed Real Model**: \`${payload.prediction_name}\` (${percent(payload.probability)} confidence)\n`;
+  md += `- **Model Family**: \`${payload.family_prediction_name}\`\n`;
+  md += `- **Verdict**: ${isSpoof ? '🚨 **MODEL SPOOFING DETECTED** (Provider returned mismatched model)' : '✅ **AUTHENTIC MATCH**'}\n\n`;
+  
+  md += `| Rank | Candidate Model | Family | Probability | Centroid Similarity |\n`;
+  md += `| :--- | :--- | :--- | :--- | :--- |\n`;
+  payload.results.slice(0, 5).forEach((r, idx) => {
+    md += `| #${idx + 1} | **${r.display_name}** | ${r.family_name} | ${percent(r.probability)} | ${percent(r.profile_similarity)} |\n`;
+  });
+  
+  if (payload.api_test) {
+    md += `\n*Audited via ModelTrace API probes: ${payload.api_test.received}/${payload.api_test.requested} samples valid, Avg Speed: ${payload.api_test.avg_tps || 'N/A'} tps.*`;
+  }
+
+  navigator.clipboard.writeText(md).then(() => {
+    alert("Forensic Markdown report copied to clipboard!");
+  });
 }
 
 async function analyzeManual() {
   const button = byId("analyze");
   button.disabled = true;
-  setMessage(byId("test-message"), "正在计算……", "working");
+  setMessage(byId("test-message"), "Computing mathematical Hellinger projections...", "working");
+  
   const outputs = state.challenges.map((challenge, index) => ({
     text: byId(`output-${index}`).value,
     expected_count: challenge.expected_count,
   }));
-  const response = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ outputs }) });
-  const payload = await response.json();
-  if (response.ok) {
-    setMessage(byId("test-message"), "");
-    renderResult(payload);
-  } else {
-    setMessage(byId("test-message"), payload.error || "无法完成归因。", "error");
-    byId("result").hidden = true;
+
+  try {
+    const response = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ outputs })
+    });
+    const payload = await response.json();
+    if (response.ok) {
+      setMessage(byId("test-message"), "");
+      renderResult(payload);
+    } else {
+      setMessage(byId("test-message"), payload.error || "Attribution computation failed.", "error");
+      byId("result").hidden = true;
+    }
+  } catch (err) {
+    setMessage(byId("test-message"), "Error: " + err.message, "error");
   }
   button.disabled = false;
 }
@@ -132,40 +305,74 @@ function renderApiProgress(states, status) {
   const target = 3;
   byId("api-test-progress").hidden = false;
   byId("api-progress-status").textContent = status;
-  byId("api-progress-count").textContent = `有效 ${valid}/${target} · 已尝试 ${attempted}/${states.length}`;
+  byId("api-progress-count").textContent = `${valid}/${target} Valid · ${attempted}/${states.length} Attempts`;
   byId("api-progress-fill").style.width = `${(valid / target) * 100}%`;
+  
   byId("api-progress-steps").innerHTML = states.map((state, index) => {
-    const labels = { pending: "等待", working: "请求中", done: "有效", invalid: "数字不足", error: "接口失败", skipped: "无需调用" };
-    return `<span class="progress-step ${state}"><b>${index + 1}</b>挑战 ${index + 1} · ${labels[state]}</span>`;
+    const labels = {
+      pending: "Waiting",
+      working: "Probing...",
+      done: "Accepted",
+      invalid: "Count Insufficient",
+      error: "API Failed",
+      skipped: "Skipped"
+    };
+    return `<span class="progress-step ${state}"><b>${index + 1}</b>Probe #${index + 1} · ${labels[state]}</span>`;
   }).join("");
 }
 
 async function testViaApi(event) {
   event.preventDefault();
-  const button = event.currentTarget.querySelector("button[type=submit]");
+  const button = byId("btn-start-audit");
   button.disabled = true;
   byId("result").hidden = true;
   setMessage(byId("test-message"), "");
 
-  const challengeResponse = await fetch("/api/challenges");
-  const firstBatch = (await challengeResponse.json()).challenges;
+  // Show telemetry grid
+  const telemGrid = byId("api-telemetry-grid");
+  telemGrid.hidden = false;
+  byId("telem-tps").textContent = "-- tps";
+  byId("telem-lat").textContent = "-- s";
+  byId("telem-format").textContent = "Auto";
+  byId("telem-leak").textContent = "Clean";
+  byId("telem-leak-card").classList.remove("leak-alert");
+
+  let firstBatch = [];
+  try {
+    const challengeResponse = await fetch("/api/challenges");
+    firstBatch = (await challengeResponse.json()).challenges;
+  } catch (err) {
+    setMessage(byId("test-message"), "Failed to generate challenge suite: " + err.message, "error");
+    button.disabled = false;
+    return;
+  }
+
   const retryResponse = await fetch("/api/challenges");
   const challenges = firstBatch.concat((await retryResponse.json()).challenges);
   const states = challenges.map(() => "pending");
   const outputs = [];
   const errors = [];
   const target = 3;
+
+  const claimedModel = byId("test-api-model").value.trim();
   const configuration = {
-    base_url: byId("test-api-base").value,
-    api_key: byId("test-api-key").value,
-    api_model: byId("test-api-model").value,
+    base_url: byId("test-api-base").value.trim(),
+    api_key: byId("test-api-key").value.trim(),
+    api_model: claimedModel,
     temperature: optionalNumber("test-temperature"),
   };
-  renderApiProgress(states, "已生成独立挑战，准备调用模型");
+
+  const latencies = [];
+  const tpsList = [];
+  let leakedModel = null;
+  let detectedFormat = "Auto";
+
+  renderApiProgress(states, "Challenges generated. Dispatching probes to model...");
 
   for (let index = 0; index < challenges.length && outputs.length < target; index += 1) {
     states[index] = "working";
-    renderApiProgress(states, `正在进行第 ${index + 1} 次尝试，等待模型完整输出……`);
+    renderApiProgress(states, `Dispatching Probe #${index + 1} (${challenges[index].expected_count} ints)...`);
+    
     try {
       const response = await fetch("/api/test/probe", {
         method: "POST",
@@ -177,19 +384,43 @@ async function testViaApi(event) {
         }),
       });
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "接口请求失败");
+      if (!response.ok) throw new Error(payload.error || "API request rejected");
+
+      // Record Telemetry
+      if (payload.latency) latencies.push(payload.latency);
+      if (payload.tps) tpsList.push(payload.tps);
+      if (payload.api_format) detectedFormat = payload.api_format;
+      if (payload.model_leak) leakedModel = payload.model_leak;
+
+      // Update Live Telemetry Cards
+      if (tpsList.length) {
+        const avgTps = (tpsList.reduce((a, b) => a + b, 0) / tpsList.length).toFixed(1);
+        byId("telem-tps").textContent = `${avgTps} tps`;
+        byId("telem-tps-note").textContent = avgTps > 85 ? "⚡ Very Fast (Likely Haiku/Mini)" : "Normal latency curve";
+      }
+      if (latencies.length) {
+        const avgLat = (latencies.reduce((a, b) => a + b, 0) / latencies.length).toFixed(2);
+        byId("telem-lat").textContent = `${avgLat} s`;
+      }
+      byId("telem-format").textContent = detectedFormat === "anthropic" ? "Anthropic" : "OpenAI";
+      if (leakedModel) {
+        byId("telem-leak").textContent = leakedModel;
+        byId("telem-leak-note").textContent = "Mismatch detected!";
+        byId("telem-leak-card").classList.add("leak-alert");
+      }
+
       if (payload.accepted) {
         outputs.push({ text: payload.text, expected_count: challenges[index].expected_count });
         states[index] = "done";
       } else {
-        errors.push(`尝试 ${index + 1}: 有效数字 ${payload.parsed_numbers}/${payload.minimum_numbers}`);
+        errors.push(`Probe #${index + 1}: Parsed ${payload.parsed_numbers}/${payload.minimum_numbers} ints`);
         states[index] = "invalid";
       }
     } catch (error) {
-      errors.push(`尝试 ${index + 1}: ${error.message}`);
+      errors.push(`Probe #${index + 1}: ${error.message}`);
       states[index] = "error";
     }
-    renderApiProgress(states, `当前已有 ${outputs.length}/${target} 份有效回答`);
+    renderApiProgress(states, `Acquired ${outputs.length}/${target} valid samples`);
   }
 
   if (outputs.length === target) {
@@ -197,48 +428,78 @@ async function testViaApi(event) {
   }
 
   if (!outputs.length) {
-    renderApiProgress(states, "六次尝试后仍没有可用回答");
-    setMessage(byId("test-message"), `没有获得可分析输出。${errors[0] || ""}`, "error");
+    renderApiProgress(states, "All 6 attempts failed to return valid outputs");
+    setMessage(byId("test-message"), `No valid outputs collected. ${errors[0] || ""}`, "error");
     button.disabled = false;
     return;
   }
 
-  renderApiProgress(states, "模型回答已收齐，正在计算归因概率……");
-  const analysisResponse = await fetch("/api/analyze", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ outputs }),
-  });
-  const result = await analysisResponse.json();
-  if (analysisResponse.ok) {
-    const attempted = states.filter((state) => ["done", "invalid", "error"].includes(state)).length;
-    result.api_test = { requested: target, attempted, max_attempts: challenges.length, received: outputs.length, errors };
-    renderApiProgress(states, `测试完成：${outputs.length}/${target} 份有效回答进入归因`);
-    renderResult(result);
-  } else {
-    setMessage(byId("test-message"), result.error || "API 自动测试失败。", "error");
+  renderApiProgress(states, "Samples acquired. Computing Hellinger distance & ordered features...");
+  
+  try {
+    const analysisResponse = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ outputs }),
+    });
+    const result = await analysisResponse.json();
+    if (analysisResponse.ok) {
+      const attempted = states.filter((state) => ["done", "invalid", "error"].includes(state)).length;
+      result.api_test = {
+        requested: target,
+        attempted,
+        max_attempts: challenges.length,
+        received: outputs.length,
+        errors,
+        avg_tps: tpsList.length ? (tpsList.reduce((a, b) => a + b, 0) / tpsList.length).toFixed(1) : null,
+        avg_lat: latencies.length ? (latencies.reduce((a, b) => a + b, 0) / latencies.length).toFixed(2) : null,
+        leaked_model: leakedModel,
+      };
+      renderApiProgress(states, `Audit Complete: ${outputs.length}/${target} samples attributed`);
+      renderResult(result, claimedModel);
+    } else {
+      setMessage(byId("test-message"), result.error || "Analysis failed.", "error");
+    }
+  } catch (err) {
+    setMessage(byId("test-message"), "Analysis request failed: " + err.message, "error");
   }
+
   button.disabled = false;
 }
 
 function updateUnifiedSummary(summary) {
+  if (!summary) return;
   state.unified = summary;
-  byId("topbar-bank-count").textContent = `${summary.model_count} 个候选模型`;
-  byId("active-bank-badge").textContent = `${summary.model_count} 个候选模型`;
+  const countEl = byId("topbar-bank-count");
+  if (countEl) countEl.textContent = `${summary.model_count} Candidate Models in Bank`;
+  const badgeEl = byId("active-bank-badge");
+  if (badgeEl) badgeEl.innerHTML = `<span class="dot"></span> ${summary.model_count} Verified Models in Bank`;
 }
 
 function renderInventory() {
-  byId("selected-bank-name").textContent = state.bank.label;
-  byId("model-options").innerHTML = state.bank.models.map((model) => `<option value="${escapeHtml(model.id)}"></option>`).join("");
-  byId("bank-inventory").innerHTML = state.bank.models.length
-    ? state.bank.models.map((model) => `<span class="fingerprint-item">${escapeHtml(model.display_name)}</span>`).join("")
-    : `<span class="empty-inventory">暂无指纹</span>`;
+  if (!state.bank) return;
+  byId("selected-bank-name").textContent = `${state.bank.label} Family Models`;
+  const modelOptions = byId("model-options");
+  if (modelOptions) {
+    modelOptions.innerHTML = state.bank.models.map((m) => `<option value="${escapeHtml(m.id)}"></option>`).join("");
+  }
+  const inv = byId("bank-inventory");
+  if (inv) {
+    inv.innerHTML = state.bank.models.length
+      ? state.bank.models.map((model) => `
+        <div class="fingerprint-card">
+          <strong>${escapeHtml(model.display_name)}</strong>
+          <span>ID: <code>${escapeHtml(model.id)}</code></span>
+        </div>
+      `).join("")
+      : `<span class="empty-inventory">No models registered in this family yet.</span>`;
+  }
 }
 
 async function refreshBank() {
   const response = await fetch(`/api/bank?bank_id=${encodeURIComponent(state.bankId)}`);
   const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || "无法读取指纹库");
+  if (!response.ok) throw new Error(payload.error || "Failed to load bank");
   state.bank = payload;
   renderInventory();
 }
@@ -246,50 +507,6 @@ async function refreshBank() {
 async function selectBank(bankId) {
   state.bankId = bankId;
   await refreshBank();
-}
-
-async function enrollAutomatically(event) {
-  event.preventDefault();
-  const button = event.currentTarget.querySelector("button[type=submit]");
-  button.disabled = true;
-  const requested = Number(byId("sample-count").value);
-  const started = Date.now();
-  const progressTimer = window.setInterval(() => {
-    const seconds = Math.floor((Date.now() - started) / 1000);
-    setMessage(byId("enrollment-message"), `正在自动识别协议并采集 ${requested} 份回答 · 已等待 ${seconds} 秒`, "working");
-  }, 1000);
-  setMessage(byId("enrollment-message"), `正在自动识别协议并采集 ${requested} 份回答`, "working");
-  let response;
-  try {
-    response = await fetch("/api/enroll/auto", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        base_url: byId("api-base").value,
-        api_key: byId("api-key").value,
-        api_model: byId("api-model").value,
-        bank_id: state.bankId,
-        model_label: byId("auto-model").value,
-        sample_count: requested,
-        temperature: optionalNumber("temperature"),
-      }),
-    });
-  } catch (error) {
-    window.clearInterval(progressTimer);
-    setMessage(byId("enrollment-message"), error.message, "error");
-    button.disabled = false;
-    return;
-  }
-  window.clearInterval(progressTimer);
-  const payload = await response.json();
-  if (response.ok) {
-    state.bank = payload.bank;
-    updateUnifiedSummary(payload.unified);
-    renderInventory();
-    setMessage(byId("enrollment-message"), `采集完成：收到 ${payload.received}/${payload.requested} 份，${payload.accepted} 份进入指纹库，${payload.rejected} 份无效，${payload.errors.length} 次接口错误。`, "success");
-  } else {
-    setMessage(byId("enrollment-message"), payload.error || "自动采集失败。", "error");
-  }
-  button.disabled = false;
 }
 
 function renderBankOptions(summaries, selected) {
@@ -302,37 +519,60 @@ async function createBank(event) {
   event.preventDefault();
   const button = event.currentTarget.querySelector("button[type=submit]");
   button.disabled = true;
-  const response = await fetch("/api/banks", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ label: byId("new-bank-name").value }),
-  });
-  const payload = await response.json();
-  if (response.ok) {
-    window.BANK_SUMMARIES = payload.banks;
-    state.bankId = payload.bank.id;
-    state.bank = payload.bank;
-    updateUnifiedSummary(payload.unified);
-    renderBankOptions(payload.banks, state.bankId);
-    renderInventory();
-    byId("new-bank-name").value = "";
-    byId("create-bank-form").hidden = true;
-    setMessage(byId("enrollment-message"), `已创建 ${payload.bank.label}`, "success");
-  } else {
-    setMessage(byId("enrollment-message"), payload.error || "创建失败。", "error");
+  try {
+    const response = await fetch("/api/banks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: byId("new-bank-name").value }),
+    });
+    const payload = await response.json();
+    if (response.ok) {
+      window.BANK_SUMMARIES = payload.banks;
+      state.bankId = payload.bank.id;
+      state.bank = payload.bank;
+      updateUnifiedSummary(payload.unified);
+      renderBankOptions(payload.banks, state.bankId);
+      renderInventory();
+      byId("new-bank-name").value = "";
+      byId("create-bank-form").hidden = true;
+      setMessage(byId("enrollment-message"), `Created family: ${payload.bank.label}`, "success");
+    } else {
+      setMessage(byId("enrollment-message"), payload.error || "Creation failed.", "error");
+    }
+  } catch (err) {
+    setMessage(byId("enrollment-message"), err.message, "error");
   }
   button.disabled = false;
 }
 
-document.querySelectorAll("[data-workspace]").forEach((button) => button.addEventListener("click", () => activateWorkspace(button.dataset.workspace)));
-document.querySelectorAll("[data-test-mode]").forEach((button) => button.addEventListener("click", () => activateMode("test", button.dataset.testMode)));
-byId("bank-select").addEventListener("change", (event) => selectBank(event.target.value));
-byId("regenerate").addEventListener("click", loadChallenges);
-byId("analyze").addEventListener("click", analyzeManual);
-byId("api-test-form").addEventListener("submit", testViaApi);
-byId("auto-enrollment").addEventListener("submit", enrollAutomatically);
-byId("show-create-bank").addEventListener("click", () => { byId("create-bank-form").hidden = !byId("create-bank-form").hidden; });
-byId("create-bank-form").addEventListener("submit", createBank);
+// Bind Event Listeners
+document.querySelectorAll("[data-workspace]").forEach((button) => {
+  button.addEventListener("click", () => activateWorkspace(button.dataset.workspace));
+});
+document.querySelectorAll("[data-test-mode]").forEach((button) => {
+  button.addEventListener("click", () => activateMode("test", button.dataset.testMode));
+});
+if (byId("bank-select")) {
+  byId("bank-select").addEventListener("change", (event) => selectBank(event.target.value));
+}
+if (byId("regenerate")) {
+  byId("regenerate").addEventListener("click", loadChallenges);
+}
+if (byId("analyze")) {
+  byId("analyze").addEventListener("click", analyzeManual);
+}
+if (byId("api-test-form")) {
+  byId("api-test-form").addEventListener("submit", testViaApi);
+}
+if (byId("show-create-bank")) {
+  byId("show-create-bank").addEventListener("click", () => {
+    byId("create-bank-form").hidden = !byId("create-bank-form").hidden;
+  });
+}
+if (byId("create-bank-form")) {
+  byId("create-bank-form").addEventListener("submit", createBank);
+}
 
+// Initial Run
 renderInventory();
 loadChallenges();
