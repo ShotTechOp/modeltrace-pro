@@ -161,11 +161,13 @@ function renderResult(payload, claimedModel = null) {
   const apiMeta = payload.api_test || {};
 
   byId("result").innerHTML = `
-    <div class="hero-attribution-card ${isSpoof ? 'spoof-detected' : 'authentic'}">
-      <div class="audit-status-badge ${isSpoof ? 'warning' : 'verified'}">
-        ${isSpoof 
-          ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> SPOOFING / ROUTER SWAP DETECTED' 
-          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg> AUTHENTIC FINGERPRINT MATCH'}
+    <div class="hero-attribution-card ${payload.is_ood ? 'ood-detected' : (isSpoof ? 'spoof-detected' : 'authentic')}">
+      <div class="audit-status-badge ${payload.is_ood ? 'ood' : (isSpoof ? 'warning' : 'verified')}">
+        ${payload.is_ood
+          ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> UNANCHORED SIGNATURE / UN-ENROLLED MODEL'
+          : (isSpoof 
+              ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> SPOOFING / ROUTER SWAP DETECTED' 
+              : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg> AUTHENTIC FINGERPRINT MATCH')}
       </div>
 
       <div class="hero-main-row">
@@ -176,19 +178,27 @@ function renderResult(payload, claimedModel = null) {
 
         <div class="hero-probability-gauge">
           <div class="gauge-num">${percent(payload.probability)}</div>
-          <div class="gauge-label">Attribution Confidence</div>
+          <div class="gauge-label">${payload.is_ood ? 'Relative Fit (OOD)' : 'Attribution Confidence'}</div>
         </div>
       </div>
 
-      ${isSpoof ? `
+      ${payload.is_ood ? `
+        <div class="ood-alert-box">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <strong>Potential Un-enrolled Model Architecture (${escapeHtml(payload.ood_reason || 'Low Centroid Similarity')})</strong>
+            <p>The statistical characteristics of these outputs deviate from enrolled reference centroids. While <strong>${escapeHtml(payload.prediction_name)}</strong> is the nearest mathematical match, the low similarity (${percent(payload.top_similarity || payload.results[0]?.profile_similarity)}) suggests this response likely originates from an un-enrolled architecture, custom quantization, or heavy post-processing.</p>
+          </div>
+        </div>
+      ` : (isSpoof ? `
         <div class="spoof-alert-box">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <div>
             <strong>Provider Discrepancy Alert!</strong>
-            <p>You requested <strong>${escapeHtml(claimedModel || "Custom Model")}</strong>, but the mathematical fingerprinting algorithm (Hellinger distance & ordered sequence analysis) indicates the response was fulfilled by <strong>${escapeHtml(payload.prediction_name)}</strong>. The provider is likely routing your requests through a cheaper lightweight model.</p>
+            <p>You requested <strong>${escapeHtml(claimedModel || "Custom Model")}</strong>, but the mathematical fingerprinting algorithm indicates the response was fulfilled by <strong>${escapeHtml(payload.prediction_name)}</strong>. The provider is likely routing your requests through a cheaper lightweight model.</p>
           </div>
         </div>
-      ` : ''}
+      ` : '')}
     </div>
 
     <!-- Stats Summary Row -->

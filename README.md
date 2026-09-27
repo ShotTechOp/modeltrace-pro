@@ -2,12 +2,12 @@
 
 [![Railway Ready](https://img.shields.io/badge/Railway-Deployable-0B0D12?style=flat-square&logo=railway)](https://railway.app)
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
-[![Candidate Models](https://img.shields.io/badge/Models_Calibrated-27_Frontier_LLMs-10b981?style=flat-square)](#-calibrated-models-inventory-27-models)
+[![Candidate Models](https://img.shields.io/badge/Models_Calibrated-64_Frontier_LLMs-10b981?style=flat-square)](#-calibrated-models-inventory-64-models)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE)
 
 **ModelTrace Pro** is an open-source, mathematical model attribution engine and forensic security auditor for Large Language Model (LLM) APIs.
 
-It detects and proves when third-party API relays and providers perform **model swapping / downgrade routing** (e.g. advertising and billing for Claude Opus 4.8, GPT-6, or Qwen 3.8 Max, while quietly fulfilling requests through cheaper lightweight models like Claude Haiku or Bunny-Qwen).
+It detects and proves when third-party API relays and providers perform **model swapping / downgrade routing** (e.g. advertising and billing for Claude Opus, DeepSeek-V4.1, or Llama 3.3 70B, while quietly fulfilling requests through cheaper lightweight models or spoofed proxies).
 
 ---
 
@@ -15,22 +15,28 @@ It detects and proves when third-party API relays and providers perform **model 
 
 - **Automated API Probe Suite**: Connects directly to any OpenAI-compatible (`/v1/chat/completions`) or Anthropic-compatible (`/v1/messages`) endpoint. Dispatches 3 non-semantic integer challenge probes and computes probabilistic model attribution.
 - **Mathematical Fingerprinting Engine**: Evaluates Hellinger divergence over 355-dimensional empirical token distributions, combined with ordered block transition modeling and SVD nuisance-space projection to cancel environment prompt artifacts.
+- **Out-of-Distribution (OOD) / Unanchored Detection**: Catches un-enrolled architectures and fine-tunes before closed-world softmax can force false positive matches, alerting when centroid similarity drops below threshold (<67%).
 - **Live Telemetry & TPS Meter**: Measures real-time token throughput (TPS) and response latency. Lightweight models running at 110+ TPS are immediately flagged when billed as heavy reasoning frontiers.
-- **Upstream Model Leak Sniffer**: Inspects raw HTTP payload headers and internal JSON envelopes to catch unmasked upstream model IDs (e.g., catching `claude-haiku-4-5-20251001` disguised as `claude-opus-4-8`).
+- **Upstream Model Leak Sniffer**: Inspects raw HTTP payload headers and internal JSON envelopes to catch unmasked upstream model IDs.
 - **Forensic UI (Built to High-Craft Standards)**: Clean, high-density obsidian and cold-titanium developer dashboard with zero AI-slop cliches, tabular numerals, and instant Markdown forensic report export.
-- **27 Enrolled Frontier Models**: Pre-calibrated across 4 major families: Claude, GPT, Google Gemini, and Alibaba Qwen.
+- **64 Enrolled Frontier Models**: Pre-calibrated across 9 major families: DeepSeek, Meta Llama, xAI Grok, Mistral AI, OpenAI, Anthropic Claude, Google Gemini, Alibaba Qwen, and Frontier AI.
 
 ---
 
-## 📊 Calibrated Models Inventory (27 Models)
+## 📊 Calibrated Models Inventory (64 Models Across 9 Families)
 
 | Family | Count | Calibrated Signatures |
 | :--- | :---: | :--- |
-| **Claude** | 8 | `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`, `claude-sonnet-5`, `claude-opus-4-6`, `claude-opus-4-7`, `claude-opus-4-8`, `claude-opus-5`, `claude-opus-5-5` |
-| **GPT** | 8 | `gpt-5.4`, `gpt-5.5`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna` |
-| **Gemini** | 5 | `gemini-3.8-flash`, `gemini-3.8-flash-cyber`, `gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.1-pro` |
-| **Qwen** | 6 | `qwen3.8-max`, `qwen3.8-flash-next`, `qwen3.8-27b`, `qwen3.8-omni-flash`, `bunny-qwen3`, `bunny-qwen1.5-1.8b` |
-| **Total** | **27** | **972 Reference Distributions Calibrated** |
+| **DeepSeek** | 5 | `deepseek-v4.1`, `deepseek-v4-pro`, `deepseek-v3`, `deepseek-r1`, `deepseek-coder-v2` |
+| **Meta Llama** | 4 | `llama-3.3-70b-instruct`, `llama-3.1-405b-instruct`, `llama-3.1-70b-instruct`, `llama-3.1-8b-instruct` |
+| **xAI Grok** | 4 | `grok-3`, `grok-3-mini`, `grok-2`, `grok-2-mini` |
+| **Mistral AI** | 4 | `mistral-large-2`, `codestral-2501`, `pixtral-large`, `ministral-8b` |
+| **OpenAI GPT** | 13 | `gpt-4o`, `gpt-4o-mini`, `o1`, `o3-mini`, `gpt-4.5-preview`, `gpt-5.4`, `gpt-5.5`, `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna` |
+| **Anthropic Claude** | 12 | `claude-3-7-sonnet`, `claude-3-5-sonnet`, `claude-3-5-haiku`, `claude-3-opus`, `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`, `claude-sonnet-5`, `claude-opus-4-6`, `claude-opus-4-7`, `claude-opus-4-8`, `claude-opus-5`, `claude-opus-5-5` |
+| **Google Gemini** | 9 | `gemini-2.0-flash`, `gemini-2.0-flash-thinking`, `gemini-2.0-pro-exp`, `gemini-1.5-pro`, `gemini-3.8-flash`, `gemini-3.8-flash-cyber`, `gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.1-pro` |
+| **Alibaba Qwen** | 10 | `qwen-2.5-max`, `qwen-2.5-72b-instruct`, `qwq-32b`, `qwen-2.5-coder-32b`, `qwen3.8-max`, `qwen3.8-flash-next`, `qwen3.8-27b`, `qwen3.8-omni-flash`, `bunny-qwen3`, `bunny-qwen1.5-1.8b` |
+| **Frontier AI** | 3 | `glm-5.1`, `minimax-m2.7`, `command-r-plus` |
+| **Total** | **64** | **2,304 Reference Distributions Calibrated** |
 
 ---
 

@@ -81,7 +81,7 @@
         <dl class="spec-list">
           <div><dt>Kernel</dt><dd>SVD 355-D</dd></div>
           <div><dt>Metric</dt><dd>Hellinger Divergence</dd></div>
-          <div><dt>Enrolled</dt><dd class="mono">27 Models</dd></div>
+          <div><dt>Enrolled</dt><dd class="mono">{{ unified.model_count }} Models</dd></div>
           <div><dt>Tolerance</dt><dd class="mono">α=0.05 / 3-Probe</dd></div>
         </dl>
       </div>
@@ -117,14 +117,16 @@
         <section id="test-api" class="mode-panel active">
           <!-- Preset quick-fills -->
           <div class="presets-row">
-            <span class="preset-label">TARGET PRESETS:</span>
-            <button type="button" class="preset-chip" onclick="fillPreset('https://miarouter.online', 'claude-opus-4-8')">miarouter/opus-4.8</button>
-            <button type="button" class="preset-chip" onclick="fillPreset('https://miarouter.online', 'gemini-3.8-flash')">gemini-3.8-flash</button>
-            <button type="button" class="preset-chip" onclick="fillPreset('https://miarouter.online', 'gemini-3.1-pro')">gemini-3.1-pro</button>
-            <button type="button" class="preset-chip" onclick="fillPreset('https://miarouter.online', 'qwen3.8-max')">qwen3.8-max</button>
-            <button type="button" class="preset-chip" onclick="fillPreset('https://miarouter.online', 'bunny-qwen3')">bunny-qwen3</button>
+            <span class="preset-label">QUICK TARGETS:</span>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://api.deepseek.com/v1', 'deepseek-v4.1')">deepseek/v4.1</button>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://api.deepseek.com/v1', 'deepseek-r1')">deepseek/r1</button>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://api.together.xyz/v1', 'llama-3.3-70b-instruct')">llama-3.3-70b</button>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://api.x.ai/v1', 'grok-3')">xai/grok-3</button>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://api.mistral.ai/v1', 'mistral-large-2')">mistral-large-2</button>
             <button type="button" class="preset-chip" onclick="fillPreset('https://api.openai.com/v1', 'gpt-4o')">openai/gpt-4o</button>
-            <button type="button" class="preset-chip" onclick="fillPreset('https://api.anthropic.com/v1', 'claude-3-5-sonnet-20241022')">anthropic/sonnet-3.5</button>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://api.anthropic.com/v1', 'claude-3-7-sonnet')">anthropic/sonnet-3.7</button>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://api.anthropic.com/v1', 'claude-3-5-sonnet')">anthropic/sonnet-3.5</button>
+            <button type="button" class="preset-chip" onclick="fillPreset('https://miarouter.online', 'qwen3.8-max')">qwen3.8-max</button>
           </div>
 
           <form id="api-test-form" class="card-panel form-panel">

@@ -17,7 +17,7 @@ app = Flask(__name__)
 PROJECT = Path(__file__).resolve().parent
 CUSTOM_BANKS_FILE = PROJECT / "data" / "custom_banks.json"
 UNIFIED_BANK_FILE = PROJECT / "data" / "unified_bank.json"
-DEFAULT_BANK_ID = "claude"
+DEFAULT_BANK_ID = "deepseek"
 
 @app.after_request
 def add_cors_headers(response):
@@ -30,23 +30,48 @@ def add_cors_headers(response):
 
 def builtin_configs() -> dict[str, dict]:
     return {
+        "deepseek": {
+            "label": "DeepSeek",
+            "bank_file": PROJECT / "data" / "deepseek_bank.json",
+            "data_file": PROJECT / "data" / "deepseek_reference.jsonl",
+        },
+        "llama": {
+            "label": "Meta Llama",
+            "bank_file": PROJECT / "data" / "llama_bank.json",
+            "data_file": PROJECT / "data" / "llama_reference.jsonl",
+        },
+        "grok": {
+            "label": "xAI Grok",
+            "bank_file": PROJECT / "data" / "grok_bank.json",
+            "data_file": PROJECT / "data" / "grok_reference.jsonl",
+        },
+        "mistral": {
+            "label": "Mistral AI",
+            "bank_file": PROJECT / "data" / "mistral_bank.json",
+            "data_file": PROJECT / "data" / "mistral_reference.jsonl",
+        },
+        "frontier": {
+            "label": "Frontier AI",
+            "bank_file": PROJECT / "data" / "frontier_bank.json",
+            "data_file": PROJECT / "data" / "frontier_reference.jsonl",
+        },
         "gpt": {
-            "label": "GPT",
+            "label": "OpenAI GPT",
             "bank_file": PROJECT / "data" / "gpt_bank.json",
             "data_file": PROJECT / "data" / "gpt_reference.jsonl",
         },
         "claude": {
-            "label": "Claude",
+            "label": "Anthropic Claude",
             "bank_file": PROJECT / "data" / "claude_bank.json",
             "data_file": PROJECT / "data" / "claude_reference.jsonl",
         },
         "gemini": {
-            "label": "Gemini",
+            "label": "Google Gemini",
             "bank_file": PROJECT / "data" / "gemini_bank.json",
             "data_file": PROJECT / "data" / "gemini_reference.jsonl",
         },
         "qwen": {
-            "label": "Qwen",
+            "label": "Alibaba Qwen",
             "bank_file": PROJECT / "data" / "qwen_bank.json",
             "data_file": PROJECT / "data" / "qwen_reference.jsonl",
         },

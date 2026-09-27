@@ -16,7 +16,17 @@ DIMENSION = VALUE_MAX - VALUE_MIN + 1
 ALPHA = 0.5
 ORDERED_BLOCK_WEIGHT = 0.25
 DEFAULT_BANK = Path(__file__).with_name("data") / "gpt_bank.json"
-FAMILY_DISPLAY_NAMES = {"gpt": "GPT", "claude": "Claude"}
+FAMILY_DISPLAY_NAMES = {
+    "deepseek": "DeepSeek",
+    "llama": "Meta Llama",
+    "grok": "xAI Grok",
+    "mistral": "Mistral AI",
+    "gpt": "OpenAI GPT",
+    "claude": "Anthropic Claude",
+    "gemini": "Google Gemini",
+    "qwen": "Alibaba Qwen",
+    "frontier": "Frontier AI",
+}
 
 
 def parse_numbers(text: str) -> list[int]:
@@ -262,10 +272,32 @@ def analyze_outputs(outputs: list[dict], bank: dict) -> dict:
         for index, model_id in enumerate(model_ids)
     ]
     results.sort(key=lambda item: item["probability"], reverse=True)
+    top_result = results[0]
+    second_result = results[1] if len(results) > 1 else None
+    top_score = float(top_result["score"])
+    top_sim = float(top_result["profile_similarity"])
+    score_margin = float(top_score - second_result["score"]) if second_result else 999.0
+
+    is_ood = False
+    ood_reason = ""
+    if top_score < 1.35 or top_sim < 0.67 or score_margin < 0.35:
+        is_ood = True
+        if top_sim < 0.67:
+            ood_reason = f"Low Centroid Similarity ({top_sim * 100:.1f}%)"
+        elif top_score < 1.35:
+            ood_reason = f"Weak Discriminant Projection ({top_score:.2f})"
+        else:
+            ood_reason = f"Ambiguous Separation Margin ({score_margin:.2f})"
+
     return {
         "prediction": results[0]["model"],
         "prediction_name": results[0]["display_name"],
         "probability": results[0]["probability"],
+        "is_ood": is_ood,
+        "ood_reason": ood_reason,
+        "top_similarity": top_sim,
+        "top_score": top_score,
+        "score_margin": score_margin,
         "used_outputs": len(valid),
         "results": results,
         "diagnostics": diagnostics,

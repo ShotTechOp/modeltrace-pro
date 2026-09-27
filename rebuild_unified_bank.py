@@ -9,12 +9,16 @@ from bank_builder import build_bank, read_rows
 PROJECT = Path(__file__).resolve().parent
 OUTPUT = PROJECT / "data" / "unified_bank.json"
 SOURCES = {
-    "gpt": ("GPT", PROJECT / "data" / "gpt_reference.jsonl"),
-    "claude": ("Claude", PROJECT / "data" / "claude_reference.jsonl"),
-    "gemini": ("Gemini", PROJECT / "data" / "gemini_reference.jsonl"),
-    "qwen": ("Qwen", PROJECT / "data" / "qwen_reference.jsonl"),
+    "deepseek": ("DeepSeek", PROJECT / "data" / "deepseek_reference.jsonl"),
+    "llama": ("Meta Llama", PROJECT / "data" / "llama_reference.jsonl"),
+    "grok": ("xAI Grok", PROJECT / "data" / "grok_reference.jsonl"),
+    "mistral": ("Mistral AI", PROJECT / "data" / "mistral_reference.jsonl"),
+    "frontier": ("Frontier AI", PROJECT / "data" / "frontier_reference.jsonl"),
+    "gpt": ("OpenAI GPT", PROJECT / "data" / "gpt_reference.jsonl"),
+    "claude": ("Anthropic Claude", PROJECT / "data" / "claude_reference.jsonl"),
+    "gemini": ("Google Gemini", PROJECT / "data" / "gemini_reference.jsonl"),
+    "qwen": ("Alibaba Qwen", PROJECT / "data" / "qwen_reference.jsonl"),
 }
-
 
 
 def main() -> None:
@@ -47,6 +51,7 @@ def main() -> None:
                 "calibration": bank["calibration"],
             },
             ensure_ascii=False,
+            indent=2
         )
     )
 
