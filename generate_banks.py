@@ -66,6 +66,8 @@ REAL_CLAUDE_MODELS = [
     ("claude-3-5-sonnet", "Claude 3.5 Sonnet v2", "claude"),
     ("claude-3-5-haiku", "Claude 3.5 Haiku", "claude"),
     ("claude-3-opus", "Claude 3 Opus", "claude"),
+    ("claude-fable-5", "Claude Fable 5 (Multi-Agent)", "claude"),
+    ("claude-fable-5.1", "Claude Fable 5.1 (Multi-Agent)", "claude"),
 ]
 
 REAL_GEMINI_MODELS = [
@@ -345,6 +347,16 @@ def make_numbers_for_model(model_id: str, count: int, seed: int) -> list[int]:
         for i in range(1, 356):
             if i in PRIMES:
                 weights[i-1] += 0.30
+        weights /= weights.sum()
+        return [int(x) for x in rng.choice(np.arange(1, 356), size=count, p=weights)]
+
+    elif "claude-fable" in model_id:
+        weights = np.ones(355)
+        for i in range(1, 356):
+            if i % 11 in [2, 5, 8]:
+                weights[i-1] += 0.28
+            if 90 <= i <= 220:
+                weights[i-1] += 0.22
         weights /= weights.sum()
         return [int(x) for x in rng.choice(np.arange(1, 356), size=count, p=weights)]
 
