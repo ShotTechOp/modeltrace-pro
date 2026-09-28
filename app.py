@@ -30,6 +30,12 @@ def add_cors_headers(response):
 def health_check():
     return jsonify({"status": "ok", "service": "modeltrace-pro", "version": "2.0"}), 200
 
+@app.get("/favicon.ico")
+def favicon():
+    svg = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#0f172a"/><path d="M8 22V10l8 6 8-6v12" fill="none" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'''
+    return svg, 200, {"Content-Type": "image/svg+xml"}
+
+
 
 
 
