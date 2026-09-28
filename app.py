@@ -26,6 +26,11 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, x-api-key"
     return response
 
+@app.get("/health")
+def health_check():
+    return jsonify({"status": "ok", "service": "modeltrace-pro", "version": "2.0"}), 200
+
+
 
 
 def builtin_configs() -> dict[str, dict]:
