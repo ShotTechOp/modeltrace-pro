@@ -111,27 +111,165 @@ function renderChallenges() {
   });
 }
 
+function normalizeModelSlug(name) {
+  if (!name) return "";
+  return name.toLowerCase()
+    .trim()
+    // Strip common provider prefixes: "anthropic/", "openai/", "google/", etc.
+    .replace(/^(anthropic|openai|google|x-?ai|meta-?llama|deepseek|mistralai)\//i, "")
+    // Normalize dots, underscores, slashes, spaces to hyphens
+    .replace(/[\._\/\s]+/g, "-")
+    // Remove date suffix like -20241022 or -20251001
+    .replace(/-\d{8}$/, "")
+    // Remove trailing / leading hyphens
+    .replace(/^-+|-+$/g, "");
+}
+
+function toAlphanumeric(name) {
+  return (name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function extractVersion(name) {
+  // Matches version numbers like 4.6, 4-6, 4.8, 3.5, 3-7, 2.0, 5, 5-5
+  const m = name.match(/(\d+[\.\-_]\d+|\b\d+\b)/g);
+  return m ? m.map(v => v.replace(/[\._\-]/g, "")) : [];
+}
+
+function evaluateSpoof(claimedModel, payload) {
+  if (!claimedModel || !payload || !payload.prediction_name) {
+    return { isSpoof: false };
+  }
+
+  const rawClaimed = claimedModel.trim();
+  const rawPred = payload.prediction_name.trim();
+  const familyPred = (payload.family_prediction_name || "").toLowerCase();
+
+  const normClaimed = normalizeModelSlug(rawClaimed);
+  const normPred = normalizeModelSlug(rawPred);
+
+  const alphaClaimed = toAlphanumeric(normClaimed);
+  const alphaPred = toAlphanumeric(normPred);
+
+  // 1. Direct or alphanumeric match (e.g. claude-opus-4.6 vs claude-opus-4-6, gpt-4.5 vs gpt-4-5)
+  if (alphaClaimed === alphaPred || normClaimed === normPred) {
+    return { isSpoof: false };
+  }
+
+  // 2. Prefix / substring match with common suffixes (e.g. gpt-4-5 vs gpt-4-5-preview)
+  if (normPred.startsWith(normClaimed) || normClaimed.startsWith(normPred)) {
+    const isClaimedMini = /mini|flash|haiku|nano|small|lite/.test(normClaimed);
+    const isPredMini = /mini|flash|haiku|nano|small|lite/.test(normPred);
+    if (!isClaimedMini && isPredMini) {
+      return {
+        isSpoof: true,
+        reason: "Lightweight Tier Downgrade",
+        details: `You requested full tier <strong>${escapeHtml(rawClaimed)}</strong>, but the algorithm detected a lightweight variant (<strong>${escapeHtml(rawPred)}</strong>).`
+      };
+    }
+    return { isSpoof: false };
+  }
+
+  // 3. Cross-family router swap check
+  const families = [
+    { key: "claude", aliases: ["claude", "anthropic"], name: "Anthropic Claude" },
+    { key: "gpt", aliases: ["gpt", "openai", "chatgpt", "o1", "o3", "o4"], name: "OpenAI GPT" },
+    { key: "gemini", aliases: ["gemini", "google"], name: "Google Gemini" },
+    { key: "grok", aliases: ["grok", "xai"], name: "xAI Grok" },
+    { key: "llama", aliases: ["llama", "meta"], name: "Meta Llama" },
+    { key: "deepseek", aliases: ["deepseek"], name: "DeepSeek" },
+    { key: "qwen", aliases: ["qwen", "alibaba"], name: "Qwen" },
+    { key: "mistral", aliases: ["mistral"], name: "Mistral" }
+  ];
+
+  let claimedFamily = null;
+  for (const fam of families) {
+    if (fam.aliases.some(a => normClaimed.includes(a))) {
+      claimedFamily = fam;
+      break;
+    }
+  }
+
+  if (claimedFamily) {
+    const predHasFamily = claimedFamily.aliases.some(a => normPred.includes(a)) || familyPred.includes(claimedFamily.key);
+    if (!predHasFamily) {
+      return {
+        isSpoof: true,
+        reason: "Cross-Provider Router Swap",
+        details: `You requested a <strong>${escapeHtml(claimedFamily.name)}</strong> model (${escapeHtml(rawClaimed)}), but the response matches <strong>${escapeHtml(payload.family_prediction_name || rawPred)}</strong>.`
+      };
+    }
+  }
+
+  // 4. Tier downgrade checks (Opus vs Sonnet vs Haiku, Pro vs Flash, etc.)
+  const isClaimedOpus = normClaimed.includes("opus");
+  const isPredOpus = normPred.includes("opus");
+  const isClaimedSonnet = normClaimed.includes("sonnet");
+  const isPredSonnet = normPred.includes("sonnet");
+  const isPredHaiku = /haiku|flash|mini|nano|lite/.test(normPred);
+  const isClaimedHaiku = /haiku|flash|mini|nano|lite/.test(normClaimed);
+
+  if (isClaimedOpus && !isPredOpus) {
+    return {
+      isSpoof: true,
+      reason: "Opus Downgrade Detected",
+      details: `You requested flagship <strong>${escapeHtml(rawClaimed)}</strong>, but the response fingerprint matches <strong>${escapeHtml(rawPred)}</strong>.`
+    };
+  }
+
+  if (isClaimedSonnet && isPredHaiku) {
+    return {
+      isSpoof: true,
+      reason: "Tier Downgrade Detected",
+      details: `You requested mid-tier <strong>${escapeHtml(rawClaimed)}</strong>, but the response was fulfilled by lightweight <strong>${escapeHtml(rawPred)}</strong>.`
+    };
+  }
+
+  if (!isClaimedHaiku && isPredHaiku) {
+    return {
+      isSpoof: true,
+      reason: "Lightweight Model Swap",
+      details: `You requested standard/flagship <strong>${escapeHtml(rawClaimed)}</strong>, but the response was routed through lightweight <strong>${escapeHtml(rawPred)}</strong>.`
+    };
+  }
+
+  // 5. Version comparison (e.g. claude-4.8 vs claude-opus-4-8, or opus-4.6 vs claude-opus-4-6)
+  const claimedVers = extractVersion(normClaimed);
+  const predVers = extractVersion(normPred);
+
+  if (claimedVers.length > 0 && predVers.length > 0) {
+    const primaryClaimedVer = claimedVers[0];
+    const primaryPredVer = predVers[0];
+    
+    if (primaryClaimedVer !== primaryPredVer) {
+      return {
+        isSpoof: true,
+        reason: "Model Version Mismatch",
+        details: `You requested version <strong>${escapeHtml(rawClaimed)}</strong>, but the response was generated by version <strong>${escapeHtml(rawPred)}</strong>. The provider is likely routing to a different generation model.`
+      };
+    } else {
+      // Primary versions match! (e.g. claude-4.8 vs claude-opus-4-8, or opus-4.6 vs claude-opus-4-6)
+      return { isSpoof: false };
+    }
+  }
+
+  // 6. Generic family fallback
+  if (["claude", "gpt", "gemini", "grok", "llama", "deepseek"].includes(normClaimed)) {
+    return { isSpoof: false };
+  }
+
+  return {
+    isSpoof: true,
+    reason: "Model Mismatch Detected",
+    details: `You requested <strong>${escapeHtml(rawClaimed)}</strong>, but the response was fulfilled by <strong>${escapeHtml(rawPred)}</strong>.`
+  };
+}
+
 function renderResult(payload, claimedModel = null) {
   state.lastAuditResult = { payload, claimedModel };
 
-  // Detect spoofing
-  const predicted = (payload.prediction_name || "").toLowerCase();
-  const claimed = (claimedModel || "").toLowerCase().trim();
-  
-  let isSpoof = false;
-  if (claimed) {
-    // If user claimed Opus or Sonnet or GPT-4o but prediction is different
-    const isClaimedHaiku = claimed.includes("haiku") || claimed.includes("flash");
-    const isPredHaiku = predicted.includes("haiku") || predicted.includes("flash") || predicted.includes("mini");
-    const isClaimedOpus = claimed.includes("opus");
-    const isPredOpus = predicted.includes("opus");
-
-    if ((isClaimedOpus && !isPredOpus) || (isClaimedOpus && isPredHaiku) || (!isClaimedHaiku && isPredHaiku)) {
-      isSpoof = true;
-    } else if (claimed && !claimed.includes(predicted) && !predicted.includes(claimed)) {
-      isSpoof = true;
-    }
-  }
+  // Evaluate potential model spoofing / provider routing discrepancy
+  const spoofResult = evaluateSpoof(claimedModel, payload);
+  const isSpoof = spoofResult.isSpoof;
 
   // Diagnostics chips
   const diagnostics = payload.diagnostics.map((item, index) => `
@@ -194,8 +332,8 @@ function renderResult(payload, claimedModel = null) {
         <div class="spoof-alert-box">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <div>
-            <strong>Provider Discrepancy Alert!</strong>
-            <p>You requested <strong>${escapeHtml(claimedModel || "Custom Model")}</strong>, but the mathematical fingerprinting algorithm indicates the response was fulfilled by <strong>${escapeHtml(payload.prediction_name)}</strong>. The provider is likely routing your requests through a cheaper lightweight model.</p>
+            <strong>Provider Discrepancy Alert! ${escapeHtml(spoofResult.reason || "")}</strong>
+            <p>${spoofResult.details || `You requested <strong>${escapeHtml(claimedModel || "Custom Model")}</strong>, but the mathematical fingerprinting algorithm indicates the response was fulfilled by <strong>${escapeHtml(payload.prediction_name)}</strong>.`}</p>
           </div>
         </div>
       ` : '')}
@@ -256,13 +394,14 @@ function renderResult(payload, claimedModel = null) {
 function copyMarkdownReport() {
   if (!state.lastAuditResult) return;
   const { payload, claimedModel } = state.lastAuditResult;
-  const isSpoof = claimedModel && !claimedModel.toLowerCase().includes(payload.prediction_name.toLowerCase());
+  const spoofResult = evaluateSpoof(claimedModel, payload);
+  const isSpoof = spoofResult.isSpoof;
   
   let md = `### 🔍 ModelTrace Forensic Attribution Audit\n\n`;
   md += `- **Claimed / Billed Model**: \`${claimedModel || "Not specified"}\`\n`;
   md += `- **Attributed Real Model**: \`${payload.prediction_name}\` (${percent(payload.probability)} confidence)\n`;
   md += `- **Model Family**: \`${payload.family_prediction_name}\`\n`;
-  md += `- **Verdict**: ${isSpoof ? '🚨 **MODEL SPOOFING DETECTED** (Provider returned mismatched model)' : '✅ **AUTHENTIC MATCH**'}\n\n`;
+  md += `- **Verdict**: ${isSpoof ? `🚨 **MODEL SPOOFING DETECTED** (${spoofResult.reason || "Provider returned mismatched model"})` : '✅ **AUTHENTIC MATCH**'}\n\n`;
   
   md += `| Rank | Candidate Model | Family | Probability | Centroid Similarity |\n`;
   md += `| :--- | :--- | :--- | :--- | :--- |\n`;
