@@ -33,6 +33,9 @@ LLAMA_MODELS = [
 ]
 
 GROK_MODELS = [
+    ("grok-4.7", "xAI Grok 4.7 (Frontier Multi-Agent)", "grok"),
+    ("grok-4.6", "xAI Grok 4.6 (Frontier Reasoning)", "grok"),
+    ("grok-4.5", "xAI Grok 4.5 (Frontier)", "grok"),
     ("grok-3", "xAI Grok 3 (Frontier)", "grok"),
     ("grok-3-mini", "xAI Grok 3 Mini (Reasoning)", "grok"),
     ("grok-2", "xAI Grok 2", "grok"),
@@ -50,6 +53,17 @@ FRONTIER_MODELS = [
     ("glm-5.1", "Zhipu GLM 5.1 SOTA", "frontier"),
     ("minimax-m2.7", "MiniMax M2.7", "frontier"),
     ("command-r-plus", "Cohere Command R+", "frontier"),
+]
+
+EXISTING_GPT_MODELS = [
+    ("gpt-5.4", "GPT-5.4", "gpt"),
+    ("gpt-5.5", "GPT-5.5", "gpt"),
+    ("gpt-5.6-luna", "GPT-5.6 Luna", "gpt"),
+    ("gpt-5.6-sol", "GPT-5.6 Sol", "gpt"),
+    ("gpt-5.6-terra", "GPT-5.6 Terra", "gpt"),
+    ("gpt-6-astra", "GPT-6 Astra (Flagship Reasoning)", "gpt"),
+    ("gpt-6-sol", "GPT-6 Sol", "gpt"),
+    ("gpt-6-luna", "GPT-6 Luna", "gpt"),
 ]
 
 # Real-world additions to existing families
@@ -205,6 +219,36 @@ def make_numbers_for_model(model_id: str, count: int, seed: int) -> list[int]:
         return [int(x) for x in rng.choice(np.arange(1, 356), size=count, p=weights)]
 
     # 3. GROK FAMILY
+    elif "grok-4.7" in model_id:
+        weights = np.ones(355)
+        for i in range(1, 356):
+            if i % 7 in [1, 4]:
+                weights[i-1] += 0.38
+            if i in PRIMES:
+                weights[i-1] += 0.28
+        weights /= weights.sum()
+        return [int(x) for x in rng.choice(np.arange(1, 356), size=count, p=weights)]
+
+    elif "grok-4.6" in model_id:
+        weights = np.ones(355)
+        for i in range(1, 356):
+            if i % 5 in [0, 2]:
+                weights[i-1] += 0.32
+            if 80 <= i <= 240:
+                weights[i-1] += 0.20
+        weights /= weights.sum()
+        return [int(x) for x in rng.choice(np.arange(1, 356), size=count, p=weights)]
+
+    elif "grok-4.5" in model_id:
+        weights = np.ones(355)
+        for i in range(1, 356):
+            if i % 4 == 0:
+                weights[i-1] += 0.30
+            if 110 <= i <= 260:
+                weights[i-1] += 0.18
+        weights /= weights.sum()
+        return [int(x) for x in rng.choice(np.arange(1, 356), size=count, p=weights)]
+
     elif "grok-3-mini" in model_id:
         weights = np.ones(355)
         for i in range(1, 356):
@@ -282,6 +326,49 @@ def make_numbers_for_model(model_id: str, count: int, seed: int) -> list[int]:
         return [int(x) for x in rng.choice(np.arange(1, 356), size=count, p=weights)]
 
     # 5. OPENAI FRONTIER
+    elif "gpt-6-astra" in model_id:
+        weights = np.ones(355)
+        fib = {1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233}
+        for i in range(1, 356):
+            if i in fib:
+                weights[i-1] += 0.50
+            if i in PRIMES and i % 6 == 1:
+                weights[i-1] += 0.35
+            if 160 <= i <= 260:
+                weights[i-1] += 0.25
+        weights /= weights.sum()
+        return [int(x) for x in rng.choice(np.arange(1, 356), size=count, p=weights)]
+
+    elif "gpt-6-sol" in model_id or "gpt-5.6-sol" in model_id:
+        weights = np.ones(355)
+        for i in range(1, 356):
+            if i % 9 in [2, 5, 7]:
+                weights[i-1] += 0.32
+            if 50 <= i <= 190:
+                weights[i-1] += 0.28
+        weights /= weights.sum()
+        return [int(x) for x in rng.choice(np.arange(1, 356), size=count, p=weights)]
+
+    elif "gpt-6-luna" in model_id or "gpt-5.6-luna" in model_id:
+        weights = np.ones(355)
+        for i in range(1, 356):
+            if i % 6 in [1, 4]:
+                weights[i-1] += 0.34
+            if i in PRIMES:
+                weights[i-1] += 0.22
+        weights /= weights.sum()
+        return [int(x) for x in rng.choice(np.arange(1, 356), size=count, p=weights)]
+
+    elif "gpt-5.5" in model_id:
+        weights = np.ones(355)
+        for i in range(1, 356):
+            if i % 8 in [3, 7]:
+                weights[i-1] += 0.35
+            if 90 <= i <= 210:
+                weights[i-1] += 0.26
+        weights /= weights.sum()
+        return [int(x) for x in rng.choice(np.arange(1, 356), size=count, p=weights)]
+
     elif "o1" in model_id or "o3-mini" in model_id:
         weights = np.ones(355)
         for i in range(1, 356):
@@ -622,16 +709,11 @@ def main():
     gemini_bank_file.write_text(json.dumps(gemini_bank, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Gemini bank built with {len(gemini_bank['models'])} models.")
 
-    # 8. GPT (Add Real Frontier)
+    # 8. GPT (Rebuilt with Existing + Real Frontier)
+    print("Building OpenAI GPT reference dataset & bank...")
     gpt_ref = DATA_DIR / "gpt_reference.jsonl"
     gpt_bank_file = DATA_DIR / "gpt_bank.json"
-    # Check if real models already appended
-    existing_gpt_rows = read_rows(gpt_ref)
-    existing_gpt_ids = {r["model_id"] for r in existing_gpt_rows}
-    missing_gpt = [m for m in REAL_GPT_MODELS if m[0] not in existing_gpt_ids]
-    if missing_gpt:
-        print(f"Adding {len(missing_gpt)} real frontier models to GPT reference...")
-        create_reference_file(missing_gpt, "gpt", gpt_ref, append=True)
+    create_reference_file(EXISTING_GPT_MODELS + REAL_GPT_MODELS, "gpt", gpt_ref)
     gpt_bank = build_bank(read_rows(gpt_ref), fallback_calibration=calib)
     gpt_bank["family_name"] = "OpenAI GPT"
     gpt_bank_file.write_text(json.dumps(gpt_bank, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

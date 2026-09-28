@@ -280,19 +280,37 @@ def analyze_outputs(outputs: list[dict], bank: dict) -> dict:
 
     is_ood = False
     ood_reason = ""
-    if top_score < 1.35 or top_sim < 0.67 or score_margin < 0.35:
+    if top_score < 1.35 or top_sim < 0.68 or score_margin < 0.38:
         is_ood = True
-        if top_sim < 0.67:
+        if top_sim < 0.68:
             ood_reason = f"Low Centroid Similarity ({top_sim * 100:.1f}%)"
         elif top_score < 1.35:
             ood_reason = f"Weak Discriminant Projection ({top_score:.2f})"
         else:
             ood_reason = f"Ambiguous Separation Margin ({score_margin:.2f})"
 
+    if is_ood:
+        dampened_beta = max(1.2, min(beta * (top_sim / 0.82) * max(0.2, score_margin / 0.45), 3.0))
+        probabilities = softmax([dampened_beta * value for value in combined_scores])
+        for idx, item in enumerate(results):
+            item["probability"] = probabilities[model_ids.index(item["model"])]
+        results.sort(key=lambda item: item["probability"], reverse=True)
+        top_result = results[0]
+        prediction_id = "ood-unanchored"
+        prediction_name = f"Unanchored / OOD Signature ({ood_reason})"
+        prediction_prob = top_result["probability"]
+    else:
+        prediction_id = top_result["model"]
+        prediction_name = top_result["display_name"]
+        prediction_prob = top_result["probability"]
+
     return {
-        "prediction": results[0]["model"],
-        "prediction_name": results[0]["display_name"],
-        "probability": results[0]["probability"],
+        "prediction": prediction_id,
+        "prediction_name": prediction_name,
+        "probability": prediction_prob,
+        "closest_candidate": top_result["model"],
+        "closest_candidate_name": top_result["display_name"],
+        "closest_candidate_similarity": top_sim,
         "is_ood": is_ood,
         "ood_reason": ood_reason,
         "top_similarity": top_sim,

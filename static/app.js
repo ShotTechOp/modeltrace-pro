@@ -172,13 +172,13 @@ function renderResult(payload, claimedModel = null) {
 
       <div class="hero-main-row">
         <div>
-          <div class="hero-model-title">${escapeHtml(payload.prediction_name)}</div>
-          <div class="hero-family-tag">Identified Family: <strong>${escapeHtml(payload.family_prediction_name)}</strong> (${percent(payload.family_probability)})</div>
+          <div class="hero-model-title">${payload.is_ood ? 'Out-of-Distribution / Unknown Model' : escapeHtml(payload.prediction_name)}</div>
+          <div class="hero-family-tag">${payload.is_ood ? `Nearest Centroid: <strong>${escapeHtml(payload.closest_candidate_name || payload.results[0]?.display_name)}</strong> (${percent(payload.top_similarity || payload.results[0]?.profile_similarity)} similarity · Unconfirmed)` : `Identified Family: <strong>${escapeHtml(payload.family_prediction_name)}</strong> (${percent(payload.family_probability)})`}</div>
         </div>
 
         <div class="hero-probability-gauge">
-          <div class="gauge-num">${percent(payload.probability)}</div>
-          <div class="gauge-label">${payload.is_ood ? 'Relative Fit (OOD)' : 'Attribution Confidence'}</div>
+          <div class="gauge-num">${payload.is_ood ? percent(payload.top_similarity || payload.results[0]?.profile_similarity) : percent(payload.probability)}</div>
+          <div class="gauge-label">${payload.is_ood ? 'Centroid Fit (OOD Alert)' : 'Attribution Confidence'}</div>
         </div>
       </div>
 
@@ -186,8 +186,8 @@ function renderResult(payload, claimedModel = null) {
         <div class="ood-alert-box">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <div>
-            <strong>Potential Un-enrolled Model Architecture (${escapeHtml(payload.ood_reason || 'Low Centroid Similarity')})</strong>
-            <p>The statistical characteristics of these outputs deviate from enrolled reference centroids. While <strong>${escapeHtml(payload.prediction_name)}</strong> is the nearest mathematical match, the low similarity (${percent(payload.top_similarity || payload.results[0]?.profile_similarity)}) suggests this response likely originates from an un-enrolled architecture, custom quantization, or heavy post-processing.</p>
+            <strong>Un-Enrolled Architecture or Heavy System Prompt Warping (${escapeHtml(payload.ood_reason || 'Low Centroid Similarity')})</strong>
+            <p>The statistical characteristics of these outputs deviate from known model baselines. While <strong>${escapeHtml(payload.closest_candidate_name || payload.results[0]?.display_name)}</strong> is the nearest mathematical coordinate, the low similarity (${percent(payload.top_similarity || payload.results[0]?.profile_similarity)}) indicates this is an un-enrolled model, a custom proxy router, or an adversarial system-prompt injection.</p>
           </div>
         </div>
       ` : (isSpoof ? `
