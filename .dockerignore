@@ -1,7 +1,11 @@
-.venv
 __pycache__
 *.pyc
-.git
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.git/
 .gitignore
-.agents
-*.log
+.system_generated/
