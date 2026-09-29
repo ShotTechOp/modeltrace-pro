@@ -280,14 +280,14 @@ function renderResult(payload, claimedModel = null) {
 
   // Table rows
   const rows = payload.results.map((item, index) => `
-    <tr class="${index === 0 ? "winner" : ""}">
+    <tr class="${(index === 0 && !payload.is_ood) ? "winner" : ""}">
       <td>#${index + 1}</td>
-      <td><strong>${escapeHtml(item.display_name)}</strong></td>
+      <td><strong>${escapeHtml(item.display_name)}</strong> ${payload.is_ood ? '<small style="color: var(--text-tertiary); font-weight: normal;">(Unconfirmed)</small>' : ''}</td>
       <td><span class="badge-subtle">${escapeHtml(item.family_name)}</span></td>
       <td>
         <div class="prob-bar-container">
           <div class="prob-track">
-            <span class="prob-fill" style="width: ${Math.max(2, item.probability * 100)}%"></span>
+            <span class="prob-fill ${payload.is_ood ? 'rank-3' : ''}" style="width: ${Math.max(2, item.probability * 100)}%"></span>
           </div>
           <strong>${percent(item.probability)}</strong>
         </div>
@@ -398,26 +398,61 @@ function renderResult(payload, claimedModel = null) {
 
   // Posterior Distribution Candidates Summary Bar
   const topCandidates = payload.results.slice(0, 3);
-  let topCandidatesHtml = `
-    <div class="candidates-summary-card">
-      <div class="card-subtitle">FINGERPRINT MODEL ATTRIBUTION (POSTERIOR DISTRIBUTION)</div>
-      <div class="candidates-bars">
-        ${topCandidates.map((cand, idx) => `
-          <div class="candidate-bar-row">
-            <div class="cand-label">
-              <span class="cand-rank">#${idx + 1}</span>
-              <strong>${escapeHtml(cand.display_name)}</strong>
-              <small class="mono">(${percent(cand.profile_similarity)} sim)</small>
-            </div>
-            <div class="cand-bar-track">
-              <div class="cand-bar-fill rank-${idx + 1}" style="width: ${Math.max(3, cand.probability * 100)}%"></div>
-            </div>
-            <span class="cand-prob mono">${percent(cand.probability)}</span>
+  let topCandidatesHtml = "";
+  if (payload.is_ood) {
+    topCandidatesHtml = `
+      <div class="candidates-summary-card ood-card">
+        <div class="card-subtitle" style="color: #f59e0b;">⚠️ UNANCHORED COORDINATES (OUT-OF-DISTRIBUTION · NO MODEL CONFIRMED)</div>
+        <div class="close-margin-box" style="background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.35); margin-bottom: 12px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <div class="close-margin-title" style="color: #fbbf24;">Why are candidate models listed below?</div>
+            <p class="close-margin-desc" style="color: #e2e8f0;">
+              The tested service (e.g. <strong>Google Search AI Mode / AI Overview</strong>) is not a raw foundation model API, but a web-search RAG pipeline wrapped with search summarization prompts.
+              Its centroid fit is only <strong>${percent(payload.top_similarity)}</strong> (below the 68% verification threshold).
+              In 355-dimensional vector space, mathematical projection algorithms find the nearest coordinate, but <strong>NONE of the models below are confirmed matches</strong>.
+            </p>
           </div>
-        `).join("")}
+        </div>
+        <div class="candidates-bars">
+          ${topCandidates.map((cand, idx) => `
+            <div class="candidate-bar-row">
+              <div class="cand-label">
+                <span class="cand-rank">#${idx + 1}</span>
+                <strong>${escapeHtml(cand.display_name)}</strong>
+                <small class="mono">(${percent(cand.profile_similarity)} sim · Unconfirmed)</small>
+              </div>
+              <div class="cand-bar-track">
+                <div class="cand-bar-fill rank-3" style="width: ${Math.max(3, cand.probability * 100)}%"></div>
+              </div>
+              <span class="cand-prob mono" style="color: var(--text-tertiary);">${percent(cand.probability)}</span>
+            </div>
+          `).join("")}
+        </div>
       </div>
-    </div>
-  `;
+    `;
+  } else {
+    topCandidatesHtml = `
+      <div class="candidates-summary-card">
+        <div class="card-subtitle">FINGERPRINT MODEL ATTRIBUTION (POSTERIOR DISTRIBUTION)</div>
+        <div class="candidates-bars">
+          ${topCandidates.map((cand, idx) => `
+            <div class="candidate-bar-row">
+              <div class="cand-label">
+                <span class="cand-rank">#${idx + 1}</span>
+                <strong>${escapeHtml(cand.display_name)}</strong>
+                <small class="mono">(${percent(cand.profile_similarity)} sim)</small>
+              </div>
+              <div class="cand-bar-track">
+                <div class="cand-bar-fill rank-${idx + 1}" style="width: ${Math.max(3, cand.probability * 100)}%"></div>
+              </div>
+              <span class="cand-prob mono">${percent(cand.probability)}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
 
   byId("result").innerHTML = `
     ${comprehensiveHtml}
@@ -434,12 +469,12 @@ function renderResult(payload, claimedModel = null) {
       <div class="hero-main-row">
         <div>
           <div class="hero-model-title">${payload.is_ood ? 'Out-of-Distribution / Unknown Model' : escapeHtml(payload.prediction_name)}</div>
-          <div class="hero-family-tag">${payload.is_ood ? `Nearest Centroid: <strong>${escapeHtml(payload.closest_candidate_name || payload.results[0]?.display_name)}</strong> (${percent(payload.top_similarity || payload.results[0]?.profile_similarity)} similarity · Unconfirmed)` : `Identified Family: <strong>${escapeHtml(payload.family_prediction_name)}</strong> (${percent(payload.family_probability)})`}</div>
+          <div class="hero-family-tag">${payload.is_ood ? `Nearest Mathematical Neighbor: <strong>${escapeHtml(payload.closest_candidate_name || payload.results[0]?.display_name)}</strong> (${percent(payload.top_similarity || payload.results[0]?.profile_similarity)} similarity · ⚠️ Unconfirmed / OOD)` : `Identified Family: <strong>${escapeHtml(payload.family_prediction_name)}</strong> (${percent(payload.family_probability)})`}</div>
         </div>
 
         <div class="hero-probability-gauge">
-          <div class="gauge-num">${payload.is_ood ? percent(payload.top_similarity || payload.results[0]?.profile_similarity) : percent(payload.probability)}</div>
-          <div class="gauge-label">${payload.is_ood ? 'Centroid Fit (OOD Alert)' : 'Attribution Confidence'}</div>
+          <div class="gauge-num" style="${payload.is_ood ? 'color: #f59e0b;' : ''}">${payload.is_ood ? '0%' : percent(payload.probability)}</div>
+          <div class="gauge-label">${payload.is_ood ? `Centroid Fit: ${percent(payload.top_similarity)} (OOD Alert)` : 'Attribution Confidence'}</div>
         </div>
       </div>
 

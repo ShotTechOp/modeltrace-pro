@@ -221,28 +221,54 @@ def analyze_global_outputs(outputs: list[dict], bank: dict) -> dict:
     }
 
 
+def detect_repetition(numbers: list[int], min_block: int = 12) -> tuple[bool, int]:
+    seen: dict[tuple[int, ...], int] = {}
+    for i in range(len(numbers) - min_block):
+        sub = tuple(numbers[i : i + min_block])
+        if sub in seen:
+            p1 = seen[sub]
+            p2 = i
+            length = 0
+            while p2 + length < len(numbers) and p1 + length < p2 and numbers[p1 + length] == numbers[p2 + length]:
+                length += 1
+            if length >= min_block:
+                return True, length
+        else:
+            seen[sub] = i
+    return False, 0
+
+
 def analyze_outputs(outputs: list[dict], bank: dict) -> dict:
     model_ids = [model["id"] for model in bank["models"]]
     valid = []
     diagnostics = []
+    has_loop = False
+    max_loop_len = 0
+
     for index, item in enumerate(outputs):
         text = str(item.get("text", ""))
         expected = int(item.get("expected_count") or 0)
         numbers = parse_numbers(text)
         minimum = max(80, math.ceil(expected * 0.55)) if expected else 80
         accepted = len(numbers) >= minimum
+        loop_found, loop_len = detect_repetition(numbers)
+        if loop_found:
+            has_loop = True
+            max_loop_len = max(max_loop_len, loop_len)
         diagnostics.append(
             {
                 "index": index,
                 "parsed_numbers": len(numbers),
                 "minimum_numbers": minimum,
                 "accepted": accepted,
+                "has_loop": loop_found,
+                "loop_length": loop_len,
             }
         )
         if accepted:
             counts = count_numbers(numbers)
             components = robust_score_numbers(numbers, bank)
-            valid.append({"counts": counts, "scores": components["fused"], **components})
+            valid.append({"counts": counts, "scores": components["fused"], "numbers": numbers, **components})
 
     if not valid:
         raise ValueError("没有可用回答：请粘贴完整数字序列；拒答或严重截断的回答不会计入。")
@@ -294,8 +320,11 @@ def analyze_outputs(outputs: list[dict], bank: dict) -> dict:
 
     is_ood = False
     ood_reason = ""
-    # Distinguish genuine OOD (low similarity to any known distribution) from intra-family closeness
-    if top_sim < 0.68:
+    # Distinguish genuine OOD (low similarity or degenerate looping) from authentic foundation models
+    if has_loop:
+        is_ood = True
+        ood_reason = f"Degenerate Repetition Loop ({max_loop_len} ints repeated) — Web-Search AI/RAG Wrapper"
+    elif top_sim < 0.68:
         is_ood = True
         ood_reason = f"Low Centroid Similarity ({top_sim * 100:.1f}%)"
     elif top_score < 1.35:
@@ -306,7 +335,7 @@ def analyze_outputs(outputs: list[dict], bank: dict) -> dict:
         ood_reason = f"Ambiguous Separation Margin ({score_margin:.2f})"
 
     close_margin_note = ""
-    if is_close_margin and second_result:
+    if is_close_margin and second_result and not is_ood:
         close_margin_note = (
             f"Fingerprint is closest to {top_result['display_name']} ({top_result['probability']*100:.0f}%), "
             f"with {second_result['display_name']} ({second_result['probability']*100:.0f}%) as an intra-family candidate. "
@@ -314,7 +343,8 @@ def analyze_outputs(outputs: list[dict], bank: dict) -> dict:
         )
 
     if is_ood:
-        dampened_beta = max(1.2, min(beta * (top_sim / 0.82) * max(0.2, score_margin / 0.45), 3.0))
+        # Heavily dampen beta for OOD inputs so probabilities are flat and no model falsely claims certainty
+        dampened_beta = max(0.12, min(0.65, (top_sim - 0.45) * 1.5))
         probabilities = softmax([dampened_beta * value for value in combined_scores])
         for idx, item in enumerate(results):
             item["probability"] = probabilities[model_ids.index(item["model"])]
@@ -322,7 +352,7 @@ def analyze_outputs(outputs: list[dict], bank: dict) -> dict:
         top_result = results[0]
         prediction_id = "ood-unanchored"
         prediction_name = f"Unanchored / OOD Signature ({ood_reason})"
-        prediction_prob = top_result["probability"]
+        prediction_prob = 0.0  # 0% confidence on un-enrolled / corrupted models
     else:
         prediction_id = top_result["model"]
         prediction_name = top_result["display_name"]
