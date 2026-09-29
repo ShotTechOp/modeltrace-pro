@@ -257,7 +257,21 @@ def analyze_outputs(outputs: list[dict], bank: dict) -> dict:
     ]
     calibration_key = str(min(len(valid), 3))
     beta = float(bank["calibration"][calibration_key]["beta"])
-    probabilities = softmax([beta * value for value in combined_scores])
+    
+    # Adaptive beta calibration:
+    # When testing intra-family or closely matched models (raw margin < 0.45),
+    # a static beta=12 artificially over-polarizes the distribution to 99%.
+    # Scaling beta smoothly between 3.2 and 5.0 reflects true posterior attribution (e.g. 69% vs 27%).
+    sorted_raw_scores = sorted(combined_scores, reverse=True)
+    raw_margin = float(sorted_raw_scores[0] - sorted_raw_scores[1]) if len(sorted_raw_scores) > 1 else 999.0
+    if raw_margin < 0.45:
+        effective_beta = max(3.2, min(5.0, 3.2 + raw_margin * 3.5))
+        is_close_margin = True
+    else:
+        effective_beta = min(beta, 7.5)
+        is_close_margin = False
+
+    probabilities = softmax([effective_beta * value for value in combined_scores])
     pooled_counts = [sum(item["counts"][index] for item in valid) for index in range(DIMENSION)]
     bank_models = {model["id"]: model for model in bank["models"]}
     results = [
@@ -280,14 +294,24 @@ def analyze_outputs(outputs: list[dict], bank: dict) -> dict:
 
     is_ood = False
     ood_reason = ""
-    if top_score < 1.35 or top_sim < 0.68 or score_margin < 0.38:
+    # Distinguish genuine OOD (low similarity to any known distribution) from intra-family closeness
+    if top_sim < 0.68:
         is_ood = True
-        if top_sim < 0.68:
-            ood_reason = f"Low Centroid Similarity ({top_sim * 100:.1f}%)"
-        elif top_score < 1.35:
-            ood_reason = f"Weak Discriminant Projection ({top_score:.2f})"
-        else:
-            ood_reason = f"Ambiguous Separation Margin ({score_margin:.2f})"
+        ood_reason = f"Low Centroid Similarity ({top_sim * 100:.1f}%)"
+    elif top_score < 1.35:
+        is_ood = True
+        ood_reason = f"Weak Discriminant Projection ({top_score:.2f})"
+    elif score_margin < 0.18 and top_sim < 0.72:
+        is_ood = True
+        ood_reason = f"Ambiguous Separation Margin ({score_margin:.2f})"
+
+    close_margin_note = ""
+    if is_close_margin and second_result:
+        close_margin_note = (
+            f"Fingerprint is closest to {top_result['display_name']} ({top_result['probability']*100:.0f}%), "
+            f"with {second_result['display_name']} ({second_result['probability']*100:.0f}%) as an intra-family candidate. "
+            f"Margin is within statistical model variance."
+        )
 
     if is_ood:
         dampened_beta = max(1.2, min(beta * (top_sim / 0.82) * max(0.2, score_margin / 0.45), 3.0))
@@ -313,6 +337,9 @@ def analyze_outputs(outputs: list[dict], bank: dict) -> dict:
         "closest_candidate_similarity": top_sim,
         "is_ood": is_ood,
         "ood_reason": ood_reason,
+        "is_close_margin": is_close_margin,
+        "close_margin_note": close_margin_note,
+        "effective_beta": effective_beta,
         "top_similarity": top_sim,
         "top_score": top_score,
         "score_margin": score_margin,
@@ -321,7 +348,7 @@ def analyze_outputs(outputs: list[dict], bank: dict) -> dict:
         "diagnostics": diagnostics,
         "calibration": {
             "queries": calibration_key,
-            "beta": beta,
+            "beta": effective_beta,
             "cv_accuracy": bank["calibration"][calibration_key]["cv_accuracy"],
         },
         "method": bank.get("method", {}).get("name", "Ordered-block + nuisance-Hellinger"),

@@ -11,6 +11,7 @@ from flask import Flask, jsonify, render_template, request
 from enrollment import bank_summary, enroll_automatic, request_completion, test_automatic
 from fingerprint import analyze_global_outputs, generate_challenges, load_bank, parse_numbers
 from bank_builder import build_bank, read_rows
+from audit_protocol import run_comprehensive_audit
 
 
 app = Flask(__name__)
@@ -293,6 +294,46 @@ def automatic_test_probe():
         )
     except Exception as error:
         return jsonify({"error": str(error)}), 502
+
+
+@app.post("/api/test/comprehensive")
+def comprehensive_test():
+    payload = request.get_json() or {}
+    base_url = payload.get("base_url", "").strip()
+    api_key = payload.get("api_key", "").strip()
+    api_model = payload.get("api_model", "").strip()
+    api_format = payload.get("api_format", "auto")
+    temperature = requested_temperature(payload)
+
+    fingerprint_result = payload.get("fingerprint_result")
+    if not fingerprint_result:
+        try:
+            fingerprint_result = test_automatic(
+                base_url=base_url,
+                api_key=api_key,
+                api_model=api_model,
+                temperature=temperature,
+                bank=unified_bank,
+                api_format=api_format,
+            )
+        except Exception as error:
+            return jsonify({"error": f"Fingerprint evaluation failed: {str(error)}"}), 400
+
+    try:
+        audit_res = run_comprehensive_audit(
+            base_url=base_url,
+            api_key=api_key,
+            claimed_model=api_model,
+            fingerprint_result=fingerprint_result,
+            api_format=api_format,
+        )
+        return jsonify({
+            **audit_res,
+            "fingerprint": fingerprint_result,
+            "bank": summarized_unified_bank(),
+        })
+    except Exception as error:
+        return jsonify({"error": f"Infrastructure audit failed: {str(error)}"}), 500
 
 
 

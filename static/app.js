@@ -298,7 +298,130 @@ function renderResult(payload, claimedModel = null) {
 
   const apiMeta = payload.api_test || {};
 
+  // Comprehensive 11-Point Infrastructure Audit & Radial Gauge
+  let comprehensiveHtml = "";
+  if (payload.comprehensive) {
+    const comp = payload.comprehensive;
+    const score = Math.max(0, Math.min(100, comp.authenticity_score || 0));
+
+    let tierClass = "tier-counterfeit";
+    let tierLabel = "High-Risk Counterfeit Route";
+    if (score >= 85) {
+      tierClass = "tier-official";
+      tierLabel = "Authentic Official Tier";
+    } else if (score >= 55) {
+      tierClass = "tier-aggregator";
+      tierLabel = "Commercial Enterprise Relay";
+    } else if (score >= 20) {
+      tierClass = "tier-unofficial";
+      tierLabel = "Unofficial Reverse-Proxy Pool";
+    }
+
+    const circumference = 301.6;
+    const strokeDashoffset = (circumference * (1 - score / 100)).toFixed(1);
+
+    const checksHtml = (comp.checks || []).map((chk) => {
+      const st = chk.status || "skip";
+      let pillText = "Pass ✓";
+      if (st === "warn") pillText = chk.score_val ? chk.score_val : "Warn ⚠";
+      else if (st === "fail") pillText = "Fail ✗";
+      else if (st === "skip") pillText = "N/A";
+      else if (chk.score_val) pillText = chk.score_val;
+
+      return `
+        <div class="audit-check-card status-${st}">
+          <div class="check-top">
+            <span class="check-title">${escapeHtml(chk.label)}</span>
+            <span class="check-status-pill ${st}">${escapeHtml(pillText)}</span>
+          </div>
+          <div class="check-note">${escapeHtml(chk.note || "")}</div>
+        </div>
+      `;
+    }).join("");
+
+    comprehensiveHtml = `
+      <div class="comprehensive-card">
+        <div class="auth-gauge-row">
+          <div class="auth-radial-container">
+            <svg class="radial-gauge" viewBox="0 0 120 120">
+              <circle class="gauge-bg" cx="60" cy="60" r="48"></circle>
+              <circle class="gauge-meter ${tierClass}" cx="60" cy="60" r="48"
+                      stroke-dasharray="301.6" stroke-dashoffset="${strokeDashoffset}"></circle>
+            </svg>
+            <div class="auth-gauge-text">
+              <span class="auth-gauge-num">${score}%</span>
+              <span class="auth-gauge-sub">Authenticity</span>
+            </div>
+          </div>
+
+          <div class="auth-summary-col">
+            <span class="auth-verdict-badge ${tierClass}">${tierLabel}</span>
+            <div class="auth-verdict-title">${escapeHtml(comp.verdict || "Audit Complete")}</div>
+            <div class="auth-meta-row">
+              <div class="auth-price-tag">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                <span>${escapeHtml(comp.estimated_price || "Market Tier Analysis")}</span>
+              </div>
+              <div class="auth-model-pills">
+                <span class="pill">Claimed: <strong>${escapeHtml(claimedModel || comp.claimed_model || "N/A")}</strong></span>
+                <span class="pill">Identified: <strong>${escapeHtml(comp.identified_model || payload.prediction_name)}</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="audit-section-heading">
+          <strong>11-Point Infrastructure & Protocol Audit Matrix</strong>
+          <span class="badge-subtle">${(comp.checks || []).filter(c => c.status === 'pass').length} / ${(comp.checks || []).length} Checks Passed</span>
+        </div>
+
+        <div class="audit-checks-grid">
+          ${checksHtml}
+        </div>
+      </div>
+    `;
+  }
+
+  // Intra-Family Close Margin Notice
+  let closeMarginHtml = "";
+  if (payload.is_close_margin && payload.close_margin_note) {
+    closeMarginHtml = `
+      <div class="close-margin-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <div>
+          <div class="close-margin-title">Intra-Family Fingerprint Attribution Note</div>
+          <p class="close-margin-desc">${escapeHtml(payload.close_margin_note)}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  // Posterior Distribution Candidates Summary Bar
+  const topCandidates = payload.results.slice(0, 3);
+  let topCandidatesHtml = `
+    <div class="candidates-summary-card">
+      <div class="card-subtitle">FINGERPRINT MODEL ATTRIBUTION (POSTERIOR DISTRIBUTION)</div>
+      <div class="candidates-bars">
+        ${topCandidates.map((cand, idx) => `
+          <div class="candidate-bar-row">
+            <div class="cand-label">
+              <span class="cand-rank">#${idx + 1}</span>
+              <strong>${escapeHtml(cand.display_name)}</strong>
+              <small class="mono">(${percent(cand.profile_similarity)} sim)</small>
+            </div>
+            <div class="cand-bar-track">
+              <div class="cand-bar-fill rank-${idx + 1}" style="width: ${Math.max(3, cand.probability * 100)}%"></div>
+            </div>
+            <span class="cand-prob mono">${percent(cand.probability)}</span>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+
   byId("result").innerHTML = `
+    ${comprehensiveHtml}
+
     <div class="hero-attribution-card ${payload.is_ood ? 'ood-detected' : (isSpoof ? 'spoof-detected' : 'authentic')}">
       <div class="audit-status-badge ${payload.is_ood ? 'ood' : (isSpoof ? 'warning' : 'verified')}">
         ${payload.is_ood
@@ -320,6 +443,8 @@ function renderResult(payload, claimedModel = null) {
         </div>
       </div>
 
+      ${closeMarginHtml}
+
       ${payload.is_ood ? `
         <div class="ood-alert-box">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -338,6 +463,8 @@ function renderResult(payload, claimedModel = null) {
         </div>
       ` : '')}
     </div>
+
+    ${topCandidatesHtml}
 
     <!-- Stats Summary Row -->
     <div class="stats-summary-row">
@@ -397,12 +524,30 @@ function copyMarkdownReport() {
   const spoofResult = evaluateSpoof(claimedModel, payload);
   const isSpoof = spoofResult.isSpoof;
   
-  let md = `### 🔍 ModelTrace Forensic Attribution Audit\n\n`;
+  let md = `### 🔍 ModelTrace Forensic Attribution Audit Report\n\n`;
   md += `- **Claimed / Billed Model**: \`${claimedModel || "Not specified"}\`\n`;
-  md += `- **Attributed Real Model**: \`${payload.prediction_name}\` (${percent(payload.probability)} confidence)\n`;
+  md += `- **Attributed Real Model**: \`${payload.prediction_name}\` (${percent(payload.probability)} posterior confidence)\n`;
   md += `- **Model Family**: \`${payload.family_prediction_name}\`\n`;
-  md += `- **Verdict**: ${isSpoof ? `🚨 **MODEL SPOOFING DETECTED** (${spoofResult.reason || "Provider returned mismatched model"})` : '✅ **AUTHENTIC MATCH**'}\n\n`;
+  md += `- **Verdict**: ${isSpoof ? `🚨 **MODEL SPOOFING DETECTED** (${spoofResult.reason || "Provider returned mismatched model"})` : '✅ **AUTHENTIC MATCH**'}\n`;
   
+  if (payload.close_margin_note) {
+    md += `- **Intra-Family Notice**: ${payload.close_margin_note}\n`;
+  }
+
+  if (payload.comprehensive) {
+    const comp = payload.comprehensive;
+    md += `\n#### 🛡️ Infrastructure & Capability Audit (${comp.authenticity_score}% Authenticity)\n`;
+    md += `- **Provider Route**: ${comp.verdict}\n`;
+    md += `- **Market Tier**: ${comp.estimated_price}\n\n`;
+    md += `| Test | Status | Diagnostic Note |\n`;
+    md += `| :--- | :--- | :--- |\n`;
+    (comp.checks || []).forEach((c) => {
+      const st = c.status === "pass" ? "✅ Pass" : (c.status === "warn" ? "⚠️ Warn" : (c.status === "skip" ? "➖ N/A" : "❌ Fail"));
+      md += `| **${c.label}** | ${st} | ${c.note} |\n`;
+    });
+  }
+
+  md += `\n#### 📊 Top Model Candidates (Hellinger Centroids)\n\n`;
   md += `| Rank | Candidate Model | Family | Probability | Centroid Similarity |\n`;
   md += `| :--- | :--- | :--- | :--- | :--- |\n`;
   payload.results.slice(0, 5).forEach((r, idx) => {
@@ -410,7 +555,7 @@ function copyMarkdownReport() {
   });
   
   if (payload.api_test) {
-    md += `\n*Audited via ModelTrace API probes: ${payload.api_test.received}/${payload.api_test.requested} samples valid, Avg Speed: ${payload.api_test.avg_tps || 'N/A'} tps.*`;
+    md += `\n*Audited via ModelTrace API Probes: ${payload.api_test.received}/${payload.api_test.requested} samples valid, Avg Speed: ${payload.api_test.avg_tps || 'N/A'} tps.*`;
   }
 
   navigator.clipboard.writeText(md).then(() => {
@@ -604,6 +749,31 @@ async function testViaApi(event) {
         avg_lat: latencies.length ? (latencies.reduce((a, b) => a + b, 0) / latencies.length).toFixed(2) : null,
         leaked_model: leakedModel,
       };
+
+      // Check if user requested Deep Protocol & Infrastructure Audit (default: true)
+      const doDeepAudit = byId("check-deep-audit") ? byId("check-deep-audit").checked : true;
+      if (doDeepAudit && configuration.base_url && configuration.api_key) {
+        renderApiProgress(states, "Executing 11-point protocol & capability audit (SSE, Tools, Vision, Signatures)...");
+        try {
+          const compResp = await fetch("/api/test/comprehensive", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...configuration,
+              fingerprint_result: result,
+            }),
+          });
+          const compData = await compResp.json();
+          if (compResp.ok) {
+            result.comprehensive = compData;
+          } else {
+            console.warn("Comprehensive audit returned error:", compData.error);
+          }
+        } catch (compErr) {
+          console.warn("Comprehensive audit failed to run:", compErr);
+        }
+      }
+
       renderApiProgress(states, `Audit Complete: ${outputs.length}/${target} samples attributed`);
       renderResult(result, claimedModel);
     } else {
