@@ -12,6 +12,7 @@ from enrollment import bank_summary, enroll_automatic, request_completion, test_
 from fingerprint import analyze_global_outputs, generate_challenges, load_bank, parse_numbers
 from bank_builder import build_bank, read_rows
 from audit_protocol import run_comprehensive_audit
+from radar import FAMILY_CONFIGS, build_radar_constellation, project_radar_coordinate
 
 
 app = Flask(__name__)
@@ -232,12 +233,24 @@ def challenges():
     return jsonify({"challenges": generate_challenges(3)})
 
 
+@app.get("/api/radar/constellation")
+def radar_constellation():
+    nodes = build_radar_constellation(unified_bank or {})
+    return jsonify({
+        "nodes": nodes,
+        "families": FAMILY_CONFIGS,
+        "total_models": len(nodes),
+    })
+
+
 @app.post("/api/analyze")
 def analyze():
     try:
         payload = request.get_json()
         result = analyze_global_outputs(payload["outputs"], unified_bank)
         result["bank"] = summarized_unified_bank()
+        nodes = build_radar_constellation(unified_bank or {})
+        result["radar_coordinate"] = project_radar_coordinate(result, nodes)
         return jsonify(result)
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
@@ -256,6 +269,8 @@ def automatic_test():
             api_format="auto",
         )
         result["bank"] = summarized_unified_bank()
+        nodes = build_radar_constellation(unified_bank or {})
+        result["radar_coordinate"] = project_radar_coordinate(result, nodes)
         return jsonify(result)
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
@@ -327,9 +342,12 @@ def comprehensive_test():
             fingerprint_result=fingerprint_result,
             api_format=api_format,
         )
+        nodes = build_radar_constellation(unified_bank or {})
+        fingerprint_result["radar_coordinate"] = project_radar_coordinate(fingerprint_result, nodes)
         return jsonify({
             **audit_res,
             "fingerprint": fingerprint_result,
+            "radar_coordinate": fingerprint_result["radar_coordinate"],
             "bank": summarized_unified_bank(),
         })
     except Exception as error:

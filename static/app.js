@@ -298,6 +298,37 @@ function renderResult(payload, claimedModel = null) {
 
   const apiMeta = payload.api_test || {};
 
+  // 2D Latent Vector Projection for Radar
+  const radarCoord = payload.radar_coordinate || (payload.fingerprint && payload.fingerprint.radar_coordinate);
+  if (window.LatentRadar && radarCoord) {
+    window.LatentRadar.setTarget(radarCoord);
+  }
+
+  let radarSnippetHtml = "";
+  if (radarCoord) {
+    const isOOD = radarCoord.status === "UNANCHORED_OOD";
+    radarSnippetHtml = `
+      <div class="radar-summary-card ${isOOD ? 'radar-ood' : ''}">
+        <div class="radar-card-left">
+          <div class="radar-mini-icon ${isOOD ? 'pulse-danger' : 'pulse-active'}">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 12 19 5"/><circle cx="12" cy="12" r="2"/></svg>
+          </div>
+          <div>
+            <div class="radar-card-title">2D Latent Vector Projection</div>
+            <div class="radar-card-desc">
+              Bearing: <strong class="mono">${radarCoord.angle_deg}°</strong> · Radius: <strong class="mono">${radarCoord.r}</strong> · Cluster: <strong style="color: ${radarCoord.color};">${escapeHtml(radarCoord.nearest_cluster)}</strong> 
+              <span class="badge-subtle" style="margin-left: 6px;">${escapeHtml(radarCoord.status_label || radarCoord.status)}</span>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="btn-inspect-radar" id="btn-open-radar">
+          <span>Inspect in Latent Radar</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    `;
+  }
+
   // Comprehensive 11-Point Infrastructure Audit & Radial Gauge
   let comprehensiveHtml = "";
   if (payload.comprehensive) {
@@ -456,6 +487,7 @@ function renderResult(payload, claimedModel = null) {
 
   byId("result").innerHTML = `
     ${comprehensiveHtml}
+    ${radarSnippetHtml}
 
     <div class="hero-attribution-card ${payload.is_ood ? 'ood-detected' : (isSpoof ? 'spoof-detected' : 'authentic')}">
       <div class="audit-status-badge ${payload.is_ood ? 'ood' : (isSpoof ? 'warning' : 'verified')}">
@@ -551,6 +583,16 @@ function renderResult(payload, claimedModel = null) {
 
   byId("result").hidden = false;
   byId("result").scrollIntoView({ behavior: "smooth", block: "start" });
+
+  const btnOpenRadar = byId("btn-open-radar");
+  if (btnOpenRadar) {
+    btnOpenRadar.addEventListener("click", () => {
+      activateWorkspace("radar");
+      if (window.LatentRadar) {
+        window.LatentRadar.focusTarget();
+      }
+    });
+  }
 }
 
 function copyMarkdownReport() {
@@ -925,6 +967,38 @@ if (byId("show-create-bank")) {
 }
 if (byId("create-bank-form")) {
   byId("create-bank-form").addEventListener("submit", createBank);
+}
+
+// MIT License Modal Handlers
+const mitModal = byId("mit-modal");
+const btnMitModal = byId("btn-mit-modal");
+const closeMitModal = byId("close-mit-modal");
+const btnCopyLicense = byId("btn-copy-license");
+
+if (btnMitModal && mitModal) {
+  btnMitModal.addEventListener("click", () => {
+    mitModal.classList.remove("hidden");
+  });
+}
+if (closeMitModal && mitModal) {
+  closeMitModal.addEventListener("click", () => {
+    mitModal.classList.add("hidden");
+  });
+}
+if (mitModal) {
+  mitModal.addEventListener("click", (e) => {
+    if (e.target === mitModal) {
+      mitModal.classList.add("hidden");
+    }
+  });
+}
+if (btnCopyLicense && mitModal) {
+  btnCopyLicense.addEventListener("click", async () => {
+    const text = mitModal.querySelector(".mit-license-box").innerText;
+    await navigator.clipboard.writeText(text);
+    btnCopyLicense.textContent = "Copied to Clipboard!";
+    setTimeout(() => { btnCopyLicense.textContent = "Copy License Text"; }, 2000);
+  });
 }
 
 // Initial Run

@@ -38,6 +38,10 @@
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <span>How It Works & FAQ</span>
       </button>
+      <button type="button" class="topbar-mit-badge" id="btn-mit-modal" title="View Open Source MIT License">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>MIT License</span>
+      </button>
       <a class="topbar-github" href="https://github.com/ShotTechOp/modeltrace-pro" target="_blank" rel="noopener noreferrer" aria-label="View on GitHub" title="ShotTechOp/modeltrace-pro">
         <svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor">
           <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
@@ -58,6 +62,15 @@
           <div class="nav-label">
             <strong>Auditor</strong>
             <small>Live probe & verification</small>
+          </div>
+        </button>
+        <button class="nav-button" data-workspace="radar" type="button">
+          <span class="nav-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 12 19 5"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          </span>
+          <div class="nav-label">
+            <strong>Latent Radar 2D</strong>
+            <small>Visual constellation map</small>
           </div>
         </button>
         <button class="nav-button" data-workspace="library" type="button">
@@ -250,6 +263,116 @@
 
         <!-- AUDIT RESULTS SECTION -->
         <section id="result" class="result-panel" hidden aria-live="polite"></section>
+      </section>
+
+      <!-- WORKSPACE: 2D LATENT RADAR -->
+      <section id="workspace-radar" class="workspace">
+        <div class="page-header">
+          <div>
+            <h1>2D Latent Space Radar</h1>
+            <p>Interactive 2D manifold constellation projecting 69 frontier foundation models and live audit vectors.</p>
+          </div>
+          <div class="badge-status-pill">
+            <span class="dot"></span> <span id="radar-header-state" class="mono">RADAR ACTIVE · 69 NODES ENROLLED</span>
+          </div>
+        </div>
+
+        <div class="radar-station-container card-panel">
+          <!-- Filter Toolbar -->
+          <div class="radar-toolbar">
+            <span class="radar-filter-label">Filter Constellations:</span>
+            <div id="radar-filter-pills" class="radar-pills-wrap">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Radar Viewport Canvas Wrap -->
+          <div class="radar-canvas-wrap">
+            <canvas id="latent-radar-canvas"></canvas>
+
+            <!-- Floating Tooltip -->
+            <div id="radar-tooltip" class="radar-floating-tooltip hidden"></div>
+
+            <!-- Floating Radar Controls -->
+            <div class="radar-floating-controls">
+              <button type="button" id="radar-btn-zoomin" title="Zoom In">+</button>
+              <button type="button" id="radar-btn-zoomout" title="Zoom Out">−</button>
+              <button type="button" id="radar-btn-reset" title="Reset View">⟲</button>
+              <button type="button" id="radar-btn-sweep" class="active" title="Toggle Radar Sweep Line">📡</button>
+              <button type="button" id="radar-btn-focus" class="btn-focus-target" title="Center on Target">🎯 Focus Target</button>
+            </div>
+
+            <!-- Tactical Corner Telemetry HUD -->
+            <div class="radar-telemetry-hud">
+              <div class="telem-header">
+                <span class="hud-glitch">RADAR HUD</span>
+                <span id="radar-telemetry-status" class="telem-val status-scanning">PASSIVE SCANNING</span>
+              </div>
+              <div class="telem-grid">
+                <div>
+                  <span class="telem-lbl">Target:</span>
+                  <span id="radar-telemetry-target" class="telem-val mono">No Target Pinned</span>
+                </div>
+                <div>
+                  <span class="telem-lbl">Bearing:</span>
+                  <span id="radar-telemetry-bearing" class="telem-val mono">0.0°</span>
+                </div>
+                <div>
+                  <span class="telem-lbl">Distance:</span>
+                  <span id="radar-telemetry-dist" class="telem-val mono">---</span>
+                </div>
+                <div>
+                  <span class="telem-lbl">Cluster:</span>
+                  <span id="radar-telemetry-cluster" class="telem-val">All Constellations</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Radar Station Footer Legend -->
+          <div class="radar-station-footer">
+            <div class="radar-legend-item">
+              <span class="legend-swatch" style="background: #f59e0b;"></span>
+              <span>Anthropic (14)</span>
+            </div>
+            <div class="radar-legend-item">
+              <span class="legend-swatch" style="background: #10b981;"></span>
+              <span>OpenAI (13)</span>
+            </div>
+            <div class="radar-legend-item">
+              <span class="legend-swatch" style="background: #38bdf8;"></span>
+              <span>Gemini (9)</span>
+            </div>
+            <div class="radar-legend-item">
+              <span class="legend-swatch" style="background: #06b6d4;"></span>
+              <span>DeepSeek (5)</span>
+            </div>
+            <div class="radar-legend-item">
+              <span class="legend-swatch" style="background: #c084fc;"></span>
+              <span>Grok (7)</span>
+            </div>
+            <div class="radar-legend-item">
+              <span class="legend-swatch" style="background: #818cf8;"></span>
+              <span>Llama (4)</span>
+            </div>
+            <div class="radar-legend-item">
+              <span class="legend-swatch" style="background: #fb7185;"></span>
+              <span>Qwen (10)</span>
+            </div>
+            <div class="radar-legend-item">
+              <span class="legend-swatch" style="background: #facc15;"></span>
+              <span>Mistral (4)</span>
+            </div>
+            <div class="radar-legend-item">
+              <span class="legend-swatch" style="background: #2dd4bf;"></span>
+              <span>Frontier (3)</span>
+            </div>
+            <div class="radar-legend-item">
+              <span class="legend-swatch ood-swatch"></span>
+              <span>OOD Drift Zone (&gt;1.0)</span>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- WORKSPACE 2: FINGERPRINT LIBRARY -->
@@ -473,6 +596,47 @@
     </main>
   </div>
 
+  <!-- MIT License Modal -->
+  <div id="mit-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="mit-modal-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <strong id="mit-modal-title">MIT Open Source License</strong>
+        </div>
+        <button type="button" class="modal-close" id="close-mit-modal" aria-label="Close Modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="mit-license-box mono">
+          <p><strong>MIT License</strong></p>
+          <p>Copyright (c) 2026 ShotTechOp / ModelTrace Pro Contributors</p>
+          <br>
+          <p>Permission is hereby granted, free of charge, to any person obtaining a copy
+          of this software and associated documentation files (the "Software"), to deal
+          in the Software without restriction, including without limitation the rights
+          to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+          copies of the Software, and to permit persons to whom the Software is
+          furnished to do so, subject to the following conditions:</p>
+          <br>
+          <p>The above copyright notice and this permission notice shall be included in all
+          copies or substantial portions of the Software.</p>
+          <br>
+          <p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+          IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+          FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+          AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+          LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+          OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+          SOFTWARE.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span class="badge-status-pill"><span class="dot"></span> Approved Open Source Initiative (OSI)</span>
+        <button type="button" class="button secondary" id="btn-copy-license">Copy License Text</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Injected Server State -->
   <script>
     window.DEFAULT_BANK_ID = {{ default_bank_id | tojson }};
@@ -480,5 +644,6 @@
     window.UNIFIED_SUMMARY = {{ unified | tojson }};
   </script>
   <script src="{{ url_for('static', filename='app.js') }}"></script>
+  <script src="{{ url_for('static', filename='radar.js') }}"></script>
 </body>
 </html>

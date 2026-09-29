@@ -1858,3 +1858,421 @@ tr.winner td strong {
   color: var(--text-primary);
 }
 
+/* ==========================================================================
+   MIT License Badge & Modal
+   ========================================================================== */
+.topbar-mit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  background: rgba(37, 99, 235, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 6px;
+  color: #60a5fa;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.topbar-mit-badge:hover {
+  background: rgba(37, 99, 235, 0.22);
+  border-color: #60a5fa;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.3);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 15, 0.82);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-backdrop.hidden {
+  display: none !important;
+}
+.modal-card {
+  width: 100%;
+  max-width: 620px;
+  background: #0f141f;
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75), 0 0 20px rgba(56, 189, 248, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalFadeIn 0.2s ease;
+}
+@keyframes modalFadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.modal-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  font-size: 15px;
+}
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+.modal-close:hover {
+  color: #ffffff;
+}
+.modal-body {
+  padding: 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.mit-license-box {
+  background: #090c13;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.mit-license-box strong {
+  color: var(--text-primary);
+}
+.modal-footer {
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-subtle);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* ==========================================================================
+   2D Latent Radar Manifold Styles
+   ========================================================================== */
+.radar-station-container {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  background: #0b0e17;
+  border: 1px solid var(--border-medium);
+  border-radius: 12px;
+}
+.radar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.radar-filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+}
+.radar-pills-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.radar-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.radar-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border-color: var(--border-medium);
+}
+.radar-pill.active {
+  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(56, 189, 248, 0.45);
+  color: #38bdf8;
+  font-weight: 600;
+}
+.pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.radar-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 600px;
+  background: #06080d;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.85);
+}
+#latent-radar-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+}
+#latent-radar-canvas:active {
+  cursor: grabbing;
+}
+
+.radar-floating-controls {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 10;
+}
+.radar-floating-controls button {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  backdrop-filter: blur(8px);
+  transition: all 0.15s ease;
+}
+.radar-floating-controls button:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+.radar-floating-controls .btn-focus-target {
+  width: auto;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  gap: 5px;
+}
+
+.radar-telemetry-hud {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  background: rgba(11, 15, 24, 0.90);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  min-width: 250px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.telem-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.hud-glitch {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  color: #38bdf8;
+  letter-spacing: 0.1em;
+}
+.telem-val.status-scanning {
+  color: #38bdf8;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+.telem-val.status-locked {
+  color: #10b981;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+.telem-val.status-drift {
+  color: #ef4444;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+.telem-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 12px;
+  font-size: 11px;
+}
+.telem-lbl {
+  color: var(--text-tertiary);
+  margin-right: 4px;
+}
+.telem-val {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.radar-floating-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+  z-index: 20;
+  backdrop-filter: blur(6px);
+}
+.radar-floating-tooltip.hidden {
+  display: none;
+}
+.tooltip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.tooltip-coords {
+  font-size: 10px;
+  color: #38bdf8;
+}
+.tooltip-sub {
+  font-size: 9px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.radar-station-footer {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.radar-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.legend-swatch.ood-swatch {
+  background: #ef4444;
+  border: 1px dashed #ef4444;
+}
+
+/* Radar Summary Card inside Auditor Results */
+.radar-summary-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: rgba(56, 189, 248, 0.05);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.radar-summary-card.radar-ood {
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.28);
+}
+.radar-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.radar-mini-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+.radar-mini-icon.pulse-active {
+  animation: radarPing 2.5s infinite;
+}
+.radar-mini-icon.pulse-danger {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+@keyframes radarPing {
+  0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(56, 189, 248, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+}
+.radar-card-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.radar-card-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.btn-inspect-radar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 6px;
+  color: #38bdf8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-inspect-radar:hover {
+  background: #38bdf8;
+  color: #080a0f;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
+}
+
