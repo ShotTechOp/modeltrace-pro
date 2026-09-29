@@ -385,9 +385,10 @@
     const baseRadius = Math.min(w, h) * 0.42 * zoom;
 
     let closest = null;
-    let minDist = 16;
+    let minDist = 18;
 
     nodes.forEach(node => {
+      if (activeFilter !== "all" && node.family !== activeFilter) return;
       const px = cx + node.x * baseRadius;
       const py = cy + node.y * baseRadius;
       const dist = Math.hypot(px - mouseX, py - mouseY);
@@ -415,6 +416,12 @@
     }
   });
 
+  canvas.addEventListener("mouseleave", () => {
+    isDragging = false;
+    hoveredNode = null;
+    if (tooltip) tooltip.classList.add("hidden");
+  });
+
   canvas.addEventListener("mousedown", (e) => {
     isDragging = true;
     const rect = canvas.getBoundingClientRect();
@@ -424,6 +431,38 @@
 
   window.addEventListener("mouseup", () => {
     isDragging = false;
+  });
+
+  // Mobile Touch Support
+  canvas.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 1) {
+      isDragging = true;
+      const rect = canvas.getBoundingClientRect();
+      dragStartX = e.touches[0].clientX - rect.left;
+      dragStartY = e.touches[0].clientY - rect.top;
+    }
+  }, { passive: true });
+
+  canvas.addEventListener("touchmove", (e) => {
+    if (isDragging && e.touches.length === 1) {
+      const rect = canvas.getBoundingClientRect();
+      const touchX = e.touches[0].clientX - rect.left;
+      const touchY = e.touches[0].clientY - rect.top;
+      targetPanX += touchX - dragStartX;
+      targetPanY += touchY - dragStartY;
+      dragStartX = touchX;
+      dragStartY = touchY;
+    }
+  }, { passive: true });
+
+  canvas.addEventListener("touchend", () => {
+    isDragging = false;
+  });
+
+  canvas.addEventListener("dblclick", () => {
+    targetZoom = 1.0;
+    targetPanX = 0;
+    targetPanY = 0;
   });
 
   canvas.addEventListener("wheel", (e) => {

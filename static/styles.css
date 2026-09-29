@@ -2276,3 +2276,29 @@ tr.winner td strong {
   box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
 }
 
+@media (max-width: 768px) {
+  .radar-canvas-wrap {
+    height: 420px;
+  }
+  .radar-telemetry-hud {
+    padding: 8px 10px;
+    min-width: 200px;
+    font-size: 10px;
+    left: 8px;
+    bottom: 8px;
+  }
+  .radar-floating-controls {
+    top: 8px;
+    right: 8px;
+  }
+  .radar-summary-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .btn-inspect-radar {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
