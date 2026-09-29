@@ -1449,13 +1449,15 @@ tr.winner td strong {
 }
 
 .checkbox-option {
-  display: flex;
-  align-items: center;
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
   gap: 10px;
   cursor: pointer;
   font-size: 12.5px;
   color: var(--text-secondary);
   user-select: none;
+  margin: 0;
 }
 
 .checkbox-option input[type="checkbox"] {
